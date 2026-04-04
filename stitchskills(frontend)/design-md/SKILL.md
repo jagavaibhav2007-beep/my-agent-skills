@@ -63,27 +63,47 @@ To analyze a Stitch project, you must retrieve screen metadata and design assets
 
 ## Analysis & Synthesis Instructions
 
+> ⚠️ **STRICT EXTRACTION RULE**: Every color hex code and font name written into DESIGN.md MUST be copied verbatim from the downloaded HTML/CSS source. Never estimate colors from a screenshot. Never infer fonts from visual appearance. If a value cannot be found in the source code, write `[not found in source]` — do NOT substitute a guess.
+
 ### 1. Extract Project Identity (JSON)
 - Locate the Project Title
 - Locate the specific Project ID (e.g., from the `name` field in the JSON)
 
-### 2. Define the Atmosphere (Image/HTML)
-Evaluate the screenshot and HTML structure to capture the overall "vibe." Use evocative adjectives to describe the mood (e.g., "Airy," "Dense," "Minimalist," "Utilitarian").
+### 2. Define the Atmosphere (HTML structure — not screenshot)
+Read the HTML/CSS structure (class names, layout patterns, spacing scale) to describe the overall "vibe." Use evocative adjectives (e.g., "Airy," "Dense," "Minimalist," "Utilitarian"). Do NOT derive this from visual inspection of the screenshot alone.
 
-### 3. Map the Color Palette (Tailwind Config/JSON)
-Identify the key colors in the system. For each color, provide:
-- A descriptive, natural language name that conveys its character (e.g., "Deep Muted Teal-Navy")
-- The specific hex code in parentheses for precision (e.g., "#294056")
-- Its specific functional role (e.g., "Used for primary actions")
+### 3. Map the Color Palette — SOURCE CODE ONLY
+**Required process:**
+1. Download the HTML source via `htmlCode.downloadUrl` and read it fully
+2. Extract every unique color value that appears in the source: inline styles (`color:`, `background-color:`, `border-color:`), Tailwind arbitrary values (`bg-[#hex]`, `text-[#hex]`), and CSS custom properties (`--color-*`)
+3. Also extract colors from the `designTheme.customColors` array returned by `get_project`
+4. For each color found, record:
+   - The **exact hex code as it appears in the source** (do not round, convert, or approximate)
+   - A descriptive natural-language name derived from its role in the markup (e.g., "Primary CTA background — #294056")
+   - Its functional role based on which elements use it
 
-### 4. Translate Geometry & Shape (CSS/Tailwind)
+❌ Do NOT pick colors by eye from the screenshot
+❌ Do NOT generate a "representative" palette — only include colors that exist in the source
+❌ Do NOT convert hex to HSL/RGB or alter the value in any way
+
+### 4. Extract Typography — SOURCE CODE ONLY
+**Required process:**
+1. Scan the HTML `<head>` for `<link>` tags pointing to Google Fonts or other font CDNs — copy the exact font family names loaded
+2. Search the CSS/Tailwind for `font-family`, `font-sans`, `font-serif`, `font-mono`, or `font-['...']` usages — record exact values
+3. Extract `font-size`, `font-weight`, and `letter-spacing` values actually present in the source for headings, body, and labels
+4. If the `designTheme` object includes font fields, copy them verbatim
+
+❌ Do NOT invent a font stack because the design "looks like" a sans-serif
+❌ Do NOT assume system fonts unless `font-family: system-ui` or similar appears explicitly in the source
+
+### 5. Translate Geometry & Shape (CSS/Tailwind)
 Convert technical `border-radius` and layout values into physical descriptions:
 - Describe `rounded-full` as "Pill-shaped"
 - Describe `rounded-lg` as "Subtly rounded corners"
 - Describe `rounded-none` as "Sharp, squared-off edges"
 
-### 5. Describe Depth & Elevation
-Explain how the UI handles layers. Describe the presence and quality of shadows (e.g., "Flat," "Whisper-soft diffused shadows," or "Heavy, high-contrast drop shadows").
+### 6. Describe Depth & Elevation
+Explain how the UI handles layers. Describe the presence and quality of shadows (e.g., "Flat," "Whisper-soft diffused shadows," or "Heavy, high-contrast drop shadows"). Base this on actual `box-shadow` / `shadow-*` classes found in the source.
 
 ## Output Guidelines
 
@@ -170,3 +190,7 @@ To use this skill for the Furniture Collection project:
 - ❌ Forgetting to explain functional roles of design elements
 - ❌ Being too vague in atmosphere descriptions
 - ❌ Ignoring subtle design details like shadows or spacing patterns
+- ❌ **Guessing hex codes from the screenshot** — always extract from HTML/CSS source
+- ❌ **Inventing font names** — only write fonts that appear in `<link>` tags, `font-family` declarations, or `designTheme` fields
+- ❌ Writing a "typical" or "sensible" color palette when the source gives you the real one
+- ❌ Using approximate colors (e.g., "a dark navy, roughly #1a2b3c") — exact values only
