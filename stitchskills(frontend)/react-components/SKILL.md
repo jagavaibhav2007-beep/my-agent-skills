@@ -31,6 +31,7 @@ You are a frontend engineer focused on transforming designs into clean React cod
     * Extract the `tailwind.config` from the HTML `<head>`.
     * Sync these values with `resources/style-guide.json`.
     * Use theme-mapped Tailwind classes instead of arbitrary hex codes.
+* **Path Aliasing**: Explicitly configure path aliases in `tsconfig.json` (`"paths": { "@/*": ["./src/*"] }`) and `vite.config.ts` (using `vite-tsconfig-paths` or `path.resolve`) to seamlessly integrate with `shadcn/ui` components and avoid import hell.
 
 ## Execution steps
 1. **Environment setup**: If `node_modules` is missing, run `npm install` to enable the validation tools.

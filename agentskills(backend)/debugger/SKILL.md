@@ -13,6 +13,8 @@ allowed-tools:
   - "replace_file_content"
   - "multi_replace_file_content"
   - "browser_subagent"
+  - "mcp_context7_query-docs"
+  - "mcp_context7_resolve-library-id"
 ---
 
 # Debugger Agent Skill

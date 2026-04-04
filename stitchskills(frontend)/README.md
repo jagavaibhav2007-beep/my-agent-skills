@@ -12,6 +12,8 @@ Custom agent skills for **UI design, prompt engineering, and frontend developmen
 | 🎬 **[remotion](./remotion/SKILL.md)** | Generate walkthrough videos from Stitch projects using Remotion | *"Show me a walkthrough of my screens"* |
 | 🎨 **[shadcn-ui](./shadcn-ui/SKILL.md)** | Expert guidance for integrating and building applications with shadcn/ui | *"How do I add a shadcn sidebar?"* |
 | 🔄 **[stitch-loop](./stitch-loop/SKILL.md)** | Iteratively build websites using an autonomous baton-passing loop | *"Start the build loop"* |
+| 🎭 **[motion-design](./motion-design/SKILL.md)** | Add production-grade Framer Motion + GSAP animations (spring physics, scroll triggers, stagger lists, shared layouts) | *"Make it feel alive"* |
+| 🔀 **[state-flow](./state-flow/SKILL.md)** | Architect server-state (TanStack Query v5) and client-state (Zustand v5) using the Iron Rule, slice pattern, optimistic updates, and query key registry | *"Connect this to real data"* |
 
 ## The Frontend Workflow
 
@@ -29,6 +31,8 @@ Custom agent skills for **UI design, prompt engineering, and frontend developmen
 │  "Convert to React" → React-Components                  │
 │  "Add shadcn sidebar" → Shadcn-UI                       │
 │  "Start build loop" → Stitch-Loop                       │
+│  "Make it feel alive" → Motion-Design                   │
+│  "Connect this to real data" → State-Flow               │
 │                                                         │
 ├─────────────────────────────────────────────────────────┤
 │  Phase 3: Demo & Showcase                               │
@@ -53,8 +57,12 @@ stitchskills(frontend)/
 │   └── SKILL.md                 ← Walkthrough video generation
 ├── shadcn-ui/
 │   └── SKILL.md                 ← Component integration guide
-└── stitch-loop/
-    └── SKILL.md                 ← Autonomous iteration loop
+├── stitch-loop/
+│   └── SKILL.md                 ← Autonomous iteration loop
+├── motion-design/
+│   └── SKILL.md                 ← Framer Motion + GSAP animations
+└── state-flow/
+    └── SKILL.md                 ← TanStack Query + Zustand architecture
 ```
 
 ## Companion Skills

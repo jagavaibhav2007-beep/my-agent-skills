@@ -12,6 +12,7 @@ Custom agent skills that define **how Antigravity behaves** when performing back
 | 🧹 **[refactorer](./refactorer/SKILL.md)** | [Refact.ai](https://github.com/smallcloudai/refact) (Apache-2.0), [Martin Fowler's Catalog](https://refactoring.com/catalog/), [Refactoring.guru](https://refactoring.guru) | Detect code smells, apply proven refactoring techniques, clean up vibe-coded spaghetti |
 | 🧪 **[testing](./testing/SKILL.md)** | [Qodo Cover](https://github.com/qodo-ai/qodo-cover) (AGPL-3.0), [CoverUp](https://github.com/plasma-umass/coverup) (Apache-2.0), [EvoMaster](https://github.com/WebFuzzing/EvoMaster) (Apache-2.0) | Generate unit/integration/API tests for existing code, iterative coverage loop |
 | 🧠 **[docs-memory](./docs-memory/SKILL.md)** | [Auto Codebase Documenter](https://github.com/abryant710/auto-codebase-documenter) (MIT), [Mem0](https://github.com/mem0ai/mem0) (Apache-2.0), [Cognee](https://github.com/topoteretes/cognee) (Apache-2.0) | Auto-generate project docs + maintain AI memory so the agent never repeats mistakes |
+| 🤖 **[ai-engineer](./ai-engineer/SKILL.md)** | [LangChain](https://github.com/langchain-ai/langchain), [LlamaIndex](https://github.com/run-llama/llama_index), [CrewAI](https://github.com/crewAIInc/crewAI) | Build RAG systems, AI agents, and production-scale AI applications |
 
 ## Key Techniques Learned from Each Repo
 
@@ -55,6 +56,11 @@ Custom agent skills that define **how Antigravity behaves** when performing back
 - **Markdown-first persistence** — Plain .md files that are human-readable, Git-versionable, auto-loaded by AI (from Claude Code/OpenClaw)
 - **File-by-file documentation** — Walk every source file and generate comprehensive docs mirroring the project structure (from Auto Codebase Documenter)
 
+### From LangChain, LlamaIndex, CrewAI (AI Engineer)
+- **Advanced RAG Patterns** — Chunking strategies, hybrid search, semantic caching, and quality gates
+- **Multi-Agent Orchestration** — Role-based agents, structured task delegation, and stateful graphs
+- **Production Observability** — The MELT framework, rate limiting, retries, and Guardrails
+
 ## How to Activate a Skill
 
 Simply ask Antigravity to perform a task related to the skill:
@@ -65,6 +71,7 @@ Simply ask Antigravity to perform a task related to the skill:
 - **Refactorer:** *"Clean up this file"* or *"Refactor my codebase"*
 - **Testing:** *"Write tests for this"* or *"Generate tests for what I built"*
 - **Docs & Memory:** *"Document my project"* or *"Update the memory"*
+- **AI Engineer:** *"Add AI to my app"* or *"Build a RAG system"*
 
 ## Folder Structure
 
@@ -81,8 +88,10 @@ agentskills(backend)/
 │   └── SKILL.md           ← Refact.ai + Fowler + Refactoring.guru
 ├── testing/
 │   └── SKILL.md           ← Qodo Cover + CoverUp + EvoMaster
-└── docs-memory/
-    └── SKILL.md           ← Auto Documenter + Mem0 + Cognee + Claude Code
+├── docs-memory/
+│   └── SKILL.md           ← Auto Documenter + Mem0 + Cognee + Claude Code
+└── ai-engineer/
+    └── SKILL.md           ← LangChain + LlamaIndex + CrewAI
 ```
 
 ## Companion Skills
