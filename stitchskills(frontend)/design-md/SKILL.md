@@ -105,6 +105,81 @@ Convert technical `border-radius` and layout values into physical descriptions:
 ### 6. Describe Depth & Elevation
 Explain how the UI handles layers. Describe the presence and quality of shadows (e.g., "Flat," "Whisper-soft diffused shadows," or "Heavy, high-contrast drop shadows"). Base this on actual `box-shadow` / `shadow-*` classes found in the source.
 
+### 7. Extract Visual Effects — SOURCE CODE ONLY
+Scan the HTML/CSS for surface and layer effects applied to cards, modals, navbars, hero sections, and any other containers. For each effect found record:
+
+**Glass / Frosted Glass**
+- Look for: `backdrop-filter`, `backdrop-blur-*`, `backdrop-blur: blur(Npx)`, `bg-white/10`, `bg-opacity-*`, `saturate-*` combined with blur
+- Describe: blur strength (e.g., "Heavy 24px backdrop blur"), tint color + opacity (e.g., "White 10% tint overlay"), border treatment (e.g., "1px solid white/20 edge highlight")
+
+**Gradient Surfaces**
+- Look for: `bg-gradient-to-*`, `linear-gradient(...)`, `radial-gradient(...)`, `conic-gradient(...)`
+- Record: exact direction, exact color stops with hex codes and opacity values, which elements use them
+
+**Glow & Neon Effects**
+- Look for: `shadow-[0_0_Npx_#hex]`, `drop-shadow(...)`, `filter: glow`, `text-shadow`
+- Describe: color of the glow (exact hex), spread radius, which element it is applied to
+
+**3D Objects & Transforms**
+- Look for: `perspective(...)`, `rotateX(...)`, `rotateY(...)`, `rotateZ(...)`, `transform-style: preserve-3d`, `translate3d(...)`, Three.js/Spline/Lottie `<canvas>` or `<script>` embeds
+- Describe: what the 3D element is (e.g., "Rotating product card with 15deg Y-axis tilt on hover"), which section it lives in, and the transform values used
+
+**Noise / Grain Textures**
+- Look for: SVG `feTurbulence` filters, `noise.png` or `grain.svg` background images, `mix-blend-mode: overlay` on a texture layer
+- Describe: texture type, blend mode, opacity
+
+❌ Do NOT describe effects that do not appear in the source code
+❌ Do NOT assume glassmorphism just because cards have a light background
+
+### 8. Extract Text & Component Layout — SOURCE CODE ONLY
+Document how content is spatially arranged on the page. Scan the HTML structure and Tailwind layout classes to answer:
+
+**Text Layout**
+- Hierarchy: how many heading levels are used (`h1`–`h6` or `text-*xl` scale), and what size/weight each maps to
+- Alignment: is body text left-aligned, centered, or mixed per section?
+- Max-width constraints: look for `max-w-*` on text containers (e.g., "Body paragraphs constrained to `max-w-2xl` centered")
+- Line-height and spacing: `leading-*` classes used on paragraphs vs. headings
+
+**Component Layout**
+- Grid systems: `grid-cols-*`, `gap-*`, column counts per section
+- Flex patterns: `flex`, `flex-row`, `flex-col`, `items-*`, `justify-*` — describe what each major section uses
+- Section stacking: describe the vertical order of sections (e.g., "Hero → Features 3-col grid → Testimonials carousel → CTA banner → Footer")
+- Responsive breakpoints: note `sm:`, `md:`, `lg:`, `xl:` overrides that change layout significantly
+
+**UI Component Inventory**
+List every distinct UI component found in the source with its styling summary:
+- Buttons (primary, secondary, ghost, icon-only)
+- Cards (default, featured, interactive)
+- Navigation (topbar, sidebar, tab bar, breadcrumb)
+- Modals / Drawers / Tooltips
+- Badges / Tags / Pills
+- Form elements (inputs, selects, checkboxes, toggles)
+- Any custom/unique components (e.g., "Pricing toggle slider", "Step progress indicator")
+
+For each, describe: shape, color role, effect applied (if any), and interactive state styling if visible in the source.
+
+### 9. Extract Scroll & Motion Effects — SOURCE CODE ONLY
+Scan for animation and scroll-driven behaviour in the HTML/CSS/JS:
+
+**CSS Scroll Effects**
+- Look for: `scroll-snap-type`, `scroll-snap-align`, `overflow-y: scroll` with snap containers
+- Look for: `@keyframes`, `animation:`, `transition:` declarations tied to scroll position
+- Look for: `position: sticky`, `top: *` for sticky headers or floating elements
+
+**JS-driven Scroll Animations**
+- Look for: Intersection Observer API usage (`IntersectionObserver`, `data-aos`, `data-sal` attributes)
+- Look for: GSAP imports (`gsap`, `ScrollTrigger`), Framer Motion `useScroll`/`useTransform`, Lenis smooth scroll
+- Look for: Locomotive Scroll, ScrollReveal, AOS library `<link>` or `<script>` tags
+- Describe: which elements animate on scroll, what the animation is (fade-in, slide-up, scale, rotate), and the trigger point
+
+**3D Scroll Effects**
+- Look for: `perspective` combined with scroll-linked JS transforms, Three.js scenes that respond to scroll position, Spline scenes with scroll interaction, `parallax` class names or `data-parallax` attributes
+- Describe: what moves in 3D as the user scrolls, the axis of movement, and the speed/depth ratio if determinable from the source
+
+**Hover & Micro-interactions**
+- Look for: `hover:` Tailwind variants, `transition-*`, `duration-*`, `ease-*` classes, `:hover` CSS rules
+- Describe: what changes on hover (color, scale, translate, shadow, border) and the transition speed
+
 ## Output Guidelines
 
 - **Language:** Use descriptive design terminology and natural language exclusively
@@ -119,21 +194,40 @@ Explain how the UI handles layers. Describe the presence and quality of shadows 
 **Project ID:** [Insert Project ID Here]
 
 ## 1. Visual Theme & Atmosphere
-(Description of the mood, density, and aesthetic philosophy.)
+(Description of the mood, density, and aesthetic philosophy derived from HTML structure and class patterns.)
 
 ## 2. Color Palette & Roles
-(List colors by Descriptive Name + Hex Code + Functional Role.)
+(List only colors extracted verbatim from HTML/CSS source.)
+* **[Descriptive Name] ([exact hex])** — [functional role]
 
 ## 3. Typography Rules
-(Description of font family, weight usage for headers vs. body, and letter-spacing character.)
+(Font families copied exactly from <link> tags or font-family declarations. Size/weight scale per heading level and body.)
 
-## 4. Component Stylings
-* **Buttons:** (Shape description, color assignment, behavior).
-* **Cards/Containers:** (Corner roundness description, background color, shadow depth).
-* **Inputs/Forms:** (Stroke style, background).
+## 4. Visual Effects
+* **Glass / Frosted Glass:** (Which components use it, blur strength, tint color + opacity, border treatment.)
+* **Gradients:** (Direction, exact color stops with hex + opacity, which elements.)
+* **Glow / Neon:** (Color, spread, which elements.)
+* **3D Objects:** (What the element is, transform values, which section, interaction trigger.)
+* **Noise / Grain:** (Texture type, blend mode, opacity — or "None detected".)
 
-## 5. Layout Principles
-(Description of whitespace strategy, margins, and grid alignment.)
+## 5. Text & Component Layout
+### Text Layout
+(Heading hierarchy, alignment strategy, max-width constraints, line-height scale.)
+
+### Page Section Structure
+(Vertical section order from top to bottom of the page.)
+
+### UI Component Inventory
+* **[Component Name]:** (Shape, color role, effects applied, interactive state.)
+
+## 6. Scroll & Motion Effects
+* **CSS Scroll Snapping:** (Snap type, which containers — or "None detected".)
+* **Scroll-triggered Animations:** (Library used, which elements animate, animation type, trigger point.)
+* **3D Scroll Effects:** (What moves in 3D on scroll, axis, depth ratio — or "None detected".)
+* **Hover & Micro-interactions:** (What changes on hover per component, transition speed.)
+
+## 7. Layout Principles
+(Whitespace strategy, grid systems used, flex patterns, responsive breakpoint behaviour.)
 ```
 
 ## Usage Example
@@ -194,3 +288,8 @@ To use this skill for the Furniture Collection project:
 - ❌ **Inventing font names** — only write fonts that appear in `<link>` tags, `font-family` declarations, or `designTheme` fields
 - ❌ Writing a "typical" or "sensible" color palette when the source gives you the real one
 - ❌ Using approximate colors (e.g., "a dark navy, roughly #1a2b3c") — exact values only
+- ❌ Assuming glassmorphism or frosted glass just because a card has a light background — look for `backdrop-blur` in source
+- ❌ Describing a 3D scroll effect that has no `perspective`, `rotate3d`, or scroll-linked JS in the source
+- ❌ Listing a UI component (e.g., "Pricing toggle") that does not appear in the HTML
+- ❌ Skipping the scroll/motion section because "it's just a static design" — always scan for `transition`, `animation`, `IntersectionObserver`, and scroll libraries
+- ❌ Describing layout from the screenshot rather than reading the actual `grid`, `flex`, and `max-w` classes in the source
