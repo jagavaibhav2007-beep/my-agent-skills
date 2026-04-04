@@ -55,6 +55,12 @@ To analyze a Stitch project, you must retrieve screen metadata and design assets
    - Optionally download the screenshot from `screenshot.downloadUrl` for visual reference
    - Parse the HTML to extract Tailwind classes, custom CSS, and component patterns
 
+5a. **Multi-screen retrieval** (if `list_screens` returns more than one screen):
+   - Retrieve the HTML source for the first 3 screens by order (or all screens if fewer than 3 exist)
+   - During color, typography, and component extraction: **only record tokens that appear in at least 2 screens**
+   - Tokens that appear in only one screen are project-specific overrides — note them separately under "Screen-specific overrides" in the output, not in the main design system
+   - This ensures the DESIGN.md reflects the actual design system, not one-off page styles
+
 6. **Project metadata extraction**:
    - Call `[prefix]:get_project` with the project `name` (full path: `projects/{id}`) to get:
      - `designTheme` object with color mode, fonts, roundness, custom colors
@@ -70,7 +76,19 @@ To analyze a Stitch project, you must retrieve screen metadata and design assets
 - Locate the specific Project ID (e.g., from the `name` field in the JSON)
 
 ### 2. Define the Atmosphere (HTML structure — not screenshot)
-Read the HTML/CSS structure (class names, layout patterns, spacing scale) to describe the overall "vibe." Use evocative adjectives (e.g., "Airy," "Dense," "Minimalist," "Utilitarian"). Do NOT derive this from visual inspection of the screenshot alone.
+Read the HTML/CSS structure and use the signals below to determine the vibe. Do NOT derive this from visual inspection of the screenshot alone.
+
+| Signal found in source | Atmosphere indicator |
+|---|---|
+| Large `py-24`, `py-32`, sparse `gap-*`, few elements per section | Airy / Spacious |
+| Tight `gap-2`, `grid-cols-4+`, many elements per section | Dense / Information-rich |
+| `text-xs`, `tracking-widest`, `uppercase`, muted palette | Refined / Editorial |
+| `font-black`, large `text-7xl+`, saturated colors | Bold / Expressive |
+| `rounded-none`, `border`, monochrome palette | Utilitarian / Minimal |
+| `backdrop-blur`, `bg-white/10`, dark background | Glassmorphic / Futuristic |
+| `shadow-lg+`, strong contrast, `font-bold` headings | Grounded / Corporate |
+
+Pick the 2–3 indicators with the most evidence in the source and combine them (e.g., "Airy and Refined").
 
 ### 3. Map the Color Palette — SOURCE CODE ONLY
 **Required process:**
@@ -81,6 +99,37 @@ Read the HTML/CSS structure (class names, layout patterns, spacing scale) to des
    - The **exact hex code as it appears in the source** (do not round, convert, or approximate)
    - A descriptive natural-language name derived from its role in the markup (e.g., "Primary CTA background — #294056")
    - Its functional role based on which elements use it
+
+**Tailwind named color resolution:**
+If the source uses standard Tailwind color classes (e.g., `bg-blue-600`, `text-gray-900`, `bg-slate-800`) with no arbitrary hex override, resolve them to their Tailwind v3 default hex values using this reference and mark them as `[resolved from Tailwind]` — not `[not found in source]`:
+
+| Class | Hex |
+|---|---|
+| `slate-800` | #1e293b |
+| `slate-900` | #0f172a |
+| `gray-900` | #111827 |
+| `gray-100` | #f3f4f6 |
+| `zinc-900` | #18181b |
+| `neutral-900` | #171717 |
+| `blue-600` | #2563eb |
+| `blue-500` | #3b82f6 |
+| `indigo-600` | #4f46e5 |
+| `violet-600` | #7c3aed |
+| `purple-600` | #9333ea |
+| `pink-600` | #db2777 |
+| `rose-500` | #f43f5e |
+| `red-600` | #dc2626 |
+| `orange-500` | #f97316 |
+| `amber-400` | #fbbf24 |
+| `yellow-400` | #facc15 |
+| `green-600` | #16a34a |
+| `emerald-500` | #10b981 |
+| `teal-600` | #0d9488 |
+| `cyan-500` | #06b6d4 |
+| `white` | #ffffff |
+| `black` | #000000 |
+
+For any Tailwind shade not listed above, look up the exact hex in the Tailwind v3 default palette — do not guess.
 
 ❌ Do NOT pick colors by eye from the screenshot
 ❌ Do NOT generate a "representative" palette — only include colors that exist in the source
@@ -147,7 +196,12 @@ Document how content is spatially arranged on the page. Scan the HTML structure 
 - Responsive breakpoints: note `sm:`, `md:`, `lg:`, `xl:` overrides that change layout significantly
 
 **UI Component Inventory**
-List every distinct UI component found in the source with its styling summary:
+List every distinct UI component found in the source. Count how many times each appears across all retrieved screens, then rank them:
+
+- **Primary components** (appear 3+ times or on every screen) — these carry the brand identity; describe in full detail
+- **Secondary components** (appear 1–2 times) — describe more briefly
+
+Categories to scan for:
 - Buttons (primary, secondary, ghost, icon-only)
 - Cards (default, featured, interactive)
 - Navigation (topbar, sidebar, tab bar, breadcrumb)
@@ -156,7 +210,8 @@ List every distinct UI component found in the source with its styling summary:
 - Form elements (inputs, selects, checkboxes, toggles)
 - Any custom/unique components (e.g., "Pricing toggle slider", "Step progress indicator")
 
-For each, describe: shape, color role, effect applied (if any), and interactive state styling if visible in the source.
+For each **primary** component describe: shape, color role, effect applied (if any), interactive state styling, and frequency count.
+For each **secondary** component describe: shape, color role, frequency count.
 
 ### 9. Extract Scroll & Motion Effects — SOURCE CODE ONLY
 Scan for animation and scroll-driven behaviour in the HTML/CSS/JS:
@@ -179,6 +234,22 @@ Scan for animation and scroll-driven behaviour in the HTML/CSS/JS:
 **Hover & Micro-interactions**
 - Look for: `hover:` Tailwind variants, `transition-*`, `duration-*`, `ease-*` classes, `:hover` CSS rules
 - Describe: what changes on hover (color, scale, translate, shadow, border) and the transition speed
+
+> **Handoff note:** This step documents *what* motion exists. It does not implement it. When generating a new screen that needs to replicate or extend these scroll and motion effects, pass the Scroll & Motion Effects section of this DESIGN.md to the `motion-design` skill, which handles Framer Motion and GSAP implementation.
+
+## Post-Write Verification
+
+After writing DESIGN.md, perform this verification pass before finishing:
+
+1. **Color check** — for every hex code written in DESIGN.md, confirm it appears verbatim in the downloaded HTML source or in the `designTheme.customColors` array, or is marked `[resolved from Tailwind]`. If any hex code cannot be traced to one of these sources, replace it with `[not found in source]` and flag it in a comment above the DESIGN.md.
+
+2. **Font check** — for every font family name written in DESIGN.md, confirm it appears in a `<link>` tag, `font-family` declaration, or `designTheme` font field. If not, mark it `[not found in source]`.
+
+3. **Component check** — for every component listed in the UI Component Inventory, confirm it exists in at least one retrieved screen's HTML. Remove any that do not.
+
+4. **Effect check** — for every visual effect described (glass, gradient, glow, 3D, noise), confirm the specific CSS property or class that triggers it was found in the source. If the specific property cannot be cited, remove the effect from the output.
+
+Only mark the task complete after this verification passes.
 
 ## Output Guidelines
 
@@ -230,52 +301,68 @@ Scan for animation and scroll-driven behaviour in the HTML/CSS/JS:
 (Whitespace strategy, grid systems used, flex patterns, responsive breakpoint behaviour.)
 ```
 
-## Usage Example
+## Before / After: What Good vs Bad Output Looks Like
 
-To use this skill for the Furniture Collection project:
+Use these examples to recognise a correct extraction vs a hallucinated one.
 
-1. **Retrieve project information:**
-   ```
-   Use the Stitch MCP Server to get the Furniture Collection project
-   ```
+### Color Palette — BAD (hallucinated)
+```markdown
+## 2. Color Palette & Roles
+* **Deep Ocean Navy (#1a2b4c)** — Primary brand color used for headers
+* **Warm Ivory (#f5f0e8)** — Background tone giving the design warmth
+* **Accent Gold (#d4a843)** — Used to highlight key CTAs
+```
+Why it's bad: None of these hex codes were in the source. The model constructed a "plausible-looking" palette from the screenshot.
 
-2. **Get the Home page screen details:**
-   ```
-   Retrieve the Home page screen's code, image, and screen object information
-   ```
+### Color Palette — GOOD (extracted)
+```markdown
+## 2. Color Palette & Roles
+* **Dark Slate background (#0f172a) [resolved from Tailwind: bg-slate-900]** — Page background applied to `<body>` and all full-bleed sections
+* **Electric Indigo (#4f46e5) [resolved from Tailwind: bg-indigo-600]** — Primary CTA button background and active nav indicator
+* **Frosted white overlay (rgba(255,255,255,0.08))** — Card surface tint, extracted from inline style on `.card` elements
+* **Border mist (#ffffff1a)** — 1px card border, from `border-white/10` Tailwind class
+```
+Why it's good: Every value is sourced. Tailwind resolutions are labelled. rgba values are copied verbatim.
 
-3. **Reference best practices:**
-   ```
-   Review the Stitch Effective Prompting Guide at:
-   https://stitch.withgoogle.com/docs/learn/prompting/
-   ```
+---
 
-4. **Analyze and synthesize:**
-   - Extract all relevant design tokens from the screen
-   - Translate technical values into descriptive language
-   - Organize information according to the DESIGN.md structure
+### Typography — BAD (hallucinated)
+```markdown
+## 3. Typography Rules
+Font: Inter (clean, modern sans-serif). Headers use bold weight, body uses regular.
+```
+Why it's bad: "Inter" was not in a `<link>` tag or `font-family` declaration — the model assumed it because Inter is common.
 
-5. **Generate the file:**
-   - Create `DESIGN.md` in the project directory
-   - Follow the prescribed format exactly
-   - Ensure all color codes are accurate
-   - Use evocative, designer-friendly language
+### Typography — GOOD (extracted)
+```markdown
+## 3. Typography Rules
+* **Primary font: "Geist", sans-serif** — loaded via `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist">` in `<head>`
+* **Monospace font: "Geist Mono"** — loaded via same stylesheet, used on code labels (`font-mono` class)
+* **h1:** `text-6xl font-bold tracking-tight` → 60px, 700 weight, tight tracking
+* **h2:** `text-3xl font-semibold` → 30px, 600 weight
+* **Body:** `text-base leading-7` → 16px, 28px line-height
+* **Label/Caption:** `text-sm text-slate-400` → 14px, muted slate
+```
+Why it's good: Font names match the actual `<link>` tag. Every size/weight is a Tailwind class found in the source.
 
-## Best Practices
+---
 
-- **Be Descriptive:** Avoid generic terms like "blue" or "rounded." Use "Ocean-deep Cerulean (#0077B6)" or "Gently curved edges"
-- **Be Functional:** Always explain what each design element is used for
-- **Be Consistent:** Use the same terminology throughout the document
-- **Be Visual:** Help readers visualize the design through your descriptions
-- **Be Precise:** Include exact values (hex codes, pixel values) in parentheses after natural language descriptions
+### Visual Effects — BAD (hallucinated)
+```markdown
+## 4. Visual Effects
+* **Glass / Frosted Glass:** Cards use a frosted glass effect with soft blur and white tint
+```
+Why it's bad: No CSS evidence cited. The model assumed glass because the cards looked light.
 
-## Tips for Success
-
-1. **Start with the big picture:** Understand the overall aesthetic before diving into details
-2. **Look for patterns:** Identify consistent spacing, sizing, and styling patterns
-3. **Think semantically:** Name colors by their purpose, not just their appearance
-4. **Consider hierarchy:** Document how visual weight and importance are communicated
-5. **Reference the guide:** Use language and patterns from the Stitch Effective Prompting Guide
+### Visual Effects — GOOD (extracted)
+```markdown
+## 4. Visual Effects
+* **Glass / Frosted Glass:** Feature cards use `backdrop-blur-xl` (24px blur) + `bg-white/8` (white 8% tint) + `border border-white/10` (10% white edge highlight). Found on `.feature-card` divs in the Hero and Features sections.
+* **Gradients:** Hero section background uses `bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900`. CTA button uses `bg-gradient-to-r from-indigo-600 to-violet-600`.
+* **Glow / Neon:** CTA button has `shadow-[0_0_40px_rgba(99,102,241,0.4)]` — indigo glow at 40px spread.
+* **3D Objects:** None detected — no `perspective`, `rotateX/Y`, or canvas embeds found in source.
+* **Noise / Grain:** None detected.
+```
 
 ## Common Pitfalls to Avoid
 
