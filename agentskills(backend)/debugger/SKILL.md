@@ -1,17 +1,19 @@
 ---
 name: debugger-agent
-description: Production-grade debugging engineer. Fixes reported bugs AND eliminates the entire class of bug globally — not just a local patch. Verifies every fix against the actual stack using Context7, web search, and static analysis tools before touching source code. Sources: SWE-agent/princeton-nlp (~15k ⭐), goldbergyoni/nodebestpractices (~102k ⭐), mini-swe-agent (~5k ⭐), Microsoft TypeScript strict mode guidelines.
+description: Production-grade debugging engineer. Fixes reported bugs AND eliminates the entire class of bug globally. Can operate in auto mode — reads the whole repo, detects all bugs (logic, type, async, security, data-flow), and fixes them autonomously without being told where to look. Verifies every fix against the actual stack using Context7, web search, and static analysis tools before touching source code. Sources: SWE-agent/princeton-nlp (~15k ⭐), goldbergyoni/nodebestpractices (~102k ⭐), mini-swe-agent (~5k ⭐), Microsoft TypeScript strict mode guidelines.
 allowed-tools:
   - "Read"
   - "Write"
   - "run_command"
   - "grep_search"
+  - "file_search"
   - "view_file"
   - "list_dir"
   - "replace_file_content"
   - "multi_replace_file_content"
   - "write_to_file"
   - "search_web"
+  - "codebase_search"
   - "mcp_context7_resolve-library-id"
   - "mcp_context7_query-docs"
 ---
@@ -37,6 +39,214 @@ Sources grounding this skill:
 | *"Debug why X isn't working"* | Reactive — trace and fix |
 | *"Scan for bugs / sweep"* | Proactive — static analysis scan |
 | *"I'm getting this error: [paste]"* | Reactive — error-first |
+| *"Read the whole repo and fix all bugs"* | **Auto — full repo scan + auto-fix** |
+| *"Auto detect and fix bugs"* | **Auto — full repo scan + auto-fix** |
+| *"Find and fix everything"* | **Auto — full repo scan + auto-fix** |
+
+---
+
+## Phase A: Full Repo Auto-Detect & Fix (Auto Mode)
+
+**Triggered when the user asks for a full-repo scan with no specific bug reported.**
+This phase reads every source file, detects all bug classes, and fixes them autonomously.
+
+### A1 — Map the Entire Repository
+
+```
+1. list_dir from project root — capture the full directory tree
+2. Identify ALL source directories: src/, app/, lib/, pages/, api/, components/, etc.
+3. Identify config files:
+   - package.json / pyproject.toml / Cargo.toml / go.mod
+   - tsconfig.json / .eslintrc / .pylintrc / biome.json
+   - .env.example (check for secrets accidentally committed)
+4. Build a manifest:
+   REPO MAP:
+   - Language/runtime: [Node/Python/Go/Rust]
+   - Framework: [Next.js/Express/FastAPI/etc.]
+   - Key dependencies + versions
+   - Source roots: [list]
+   - Test roots: [list]
+   - Config files found: [list]
+```
+
+### A2 — Run All Static Analysis Tools First
+
+```
+TypeScript / JavaScript:
+→ run_command: npx tsc --noEmit 2>&1
+→ run_command: npm run lint 2>&1   (or: npx eslint . --ext .ts,.tsx,.js,.jsx)
+→ run_command: npm audit --audit-level=high 2>&1
+
+Python:
+→ run_command: python -m py_compile $(find . -name "*.py" ! -path "*/node_modules/*")
+→ run_command: ruff check . 2>&1   (fallback: pylint src/)
+→ run_command: pip audit 2>&1
+
+Go:
+→ run_command: go vet ./... 2>&1
+→ run_command: staticcheck ./... 2>&1
+
+Rust:
+→ run_command: cargo clippy 2>&1
+
+Record every error and warning — this is your primary bug list.
+```
+
+### A3 — Deep Read: Scan ALL Source Files
+
+```
+Unlike Phase 1 (lint-only), this phase READS every source file for logic bugs
+that static tools miss.
+
+File reading order (highest-risk first):
+1. Entry points: main.ts / index.ts / app.ts / server.ts / _app.tsx
+2. API route handlers (most logic lives here)
+3. Database access layer (ORMs, raw queries)
+4. Authentication / authorization modules
+5. Utility / helper functions (shared — bugs here affect everything)
+6. React components / pages (UI logic bugs)
+7. Config files (misconfigured values)
+
+For EACH file, scan for:
+
+LOGIC BUGS:
+  → Inverted conditionals (if (!isValid) doThing() where it should be if (isValid))
+  → Off-by-one errors (< vs <=, > vs >=)
+  → Unreachable code (return before the last statement)
+  → Missing return value (function that sometimes returns undefined)
+  → Wrong operator (= vs ==, & vs &&)
+
+TYPE / NULL BUGS:
+  → Unguarded .property access on potentially null/undefined values
+  → Array access without bounds check: arr[0] on possibly empty array
+  → parseInt / parseFloat without validation
+  → JSON.parse without try/catch
+  → Type assertions (as X) that could fail at runtime
+
+ASYNC BUGS:
+  → Missing await on async calls
+  → Promise not returned from function (fire and forget by accident)
+  → Race condition: two parallel mutations to the same resource
+  → useEffect with wrong dependency array (React)
+  → Event listener added but never removed (memory leak)
+
+SECURITY BUGS:
+  → SQL / NoSQL injection: raw string interpolation in queries
+  → XSS: innerHTML, dangerouslySetInnerHTML without sanitization
+  → Exposed secrets: hardcoded API keys, passwords, tokens in source
+  → CORS wildcard (*) in production APIs
+  → Missing input validation on user-supplied data at API boundaries
+
+DATA FLOW BUGS:
+  → Mutating a shared object instead of cloning
+  → Using stale state in a closure
+  → Variable shadowing causing the wrong value to be used
+  → Default mutable argument in Python (def f(x=[]))
+
+ERROR HANDLING BUGS:
+  → Empty catch blocks swallowing errors
+  → catch (e) {} with no logging or rethrow
+  → Missing error boundary in React trees
+  → Promise rejection left unhandled
+```
+
+### A4 — Build the Bug Manifest
+
+After reading all files, compile a prioritized list before touching any code:
+
+```
+=== FULL REPO BUG MANIFEST ===
+
+🔴 CRITICAL (will crash / security risk):
+  [file:line] — [bug description] — [fix plan]
+
+🟠 SIGNIFICANT (wrong behavior, data loss risk):
+  [file:line] — [bug description] — [fix plan]
+
+🟡 MINOR (edge case, code smell):
+  [file:line] — [bug description] — [fix plan]
+
+🔵 CLASS PATTERNS (same bug in N places):
+  Pattern: [description]
+  Instances: [file:line, file:line, ...]
+  Global fix: [ESLint rule / validation layer / architectural guard]
+
+Total: [N] bugs found across [M] files.
+Fixing in order: criticals → significant → minor → class patterns.
+```
+
+Print this manifest to the user before applying any fixes.
+
+### A5 — Auto-Fix: Criticals First, Then All Others
+
+For EACH bug in the manifest (critical → significant → minor → class):
+
+```
+1. Read the full function containing the bug (not just the line)
+2. Verify the correct API for this stack version via Context7 or web search
+3. Apply minimal fix:
+   - Change ONLY the broken logic
+   - Add a one-line comment: // FIX: [why this was wrong]
+   - Never refactor or rename while fixing
+4. After EACH fix:
+   → run_command: npx tsc --noEmit (TypeScript)
+   → run_command: npm run lint (JavaScript/TypeScript)
+   → run_command: ruff check . (Python)
+   Confirm the fix didn't introduce new errors.
+5. If a fix causes new errors → revert that specific change, note it as
+   "NEEDS MANUAL REVIEW", and continue to the next bug.
+```
+
+### A6 — Class-Level Elimination
+
+After all individual fixes are applied:
+
+```
+For each bug CLASS identified in A4:
+→ Add the ESLint / lint rule that prevents it at compile time
+→ Add Zod / Pydantic / schema validation at API boundaries if missing
+→ Add centralized error handler if catch blocks were swallowing errors
+→ Run linter one final time to confirm class is now statically prevented
+```
+
+### A7 — Final Verification & Commit
+
+```
+1. run_command: npx tsc --noEmit   → must be 0 errors
+2. run_command: npm run lint       → must be 0 errors (warnings OK)
+3. run_command: npm test           → all previously passing tests must pass
+4. run_command: npm run build      → must succeed (for frontend projects)
+5. Remove all debug console.log statements added during investigation
+6. Commit all fixes:
+   git add [all changed files]
+   git commit -m "fix: auto-repair [N] bugs found via full-repo scan
+
+   Criticals: [N]  Significant: [N]  Minor: [N]
+   Class guardrails added: [list rules]"
+```
+
+### A8 — Post-Fix Report
+
+```
+=== AUTO-FIX COMPLETE ===
+
+Fixed:
+  ✅ [file:line] — [what was fixed]
+  ✅ [file:line] — [what was fixed]
+  ...
+
+Needs manual review (could not auto-fix):
+  ⚠️ [file:line] — [why it needs human judgment]
+
+Class guardrails added:
+  🛡️ [ESLint rule / validation layer] — prevents [bug class]
+
+Build: ✅ passes / ❌ fails
+Tests: ✅ all pass / ⚠️ [N] failures (pre-existing)
+```
+
+Log every fixed bug into MEMORY.md:
+`[DATE] AUTO-SCAN [file:line] — [Bug] → [Fix] → ⛔ NEVER: [prevention rule]`
 
 ---
 
