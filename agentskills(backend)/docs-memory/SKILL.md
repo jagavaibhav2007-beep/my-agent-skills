@@ -1,6 +1,6 @@
 ---
 name: docs-memory-agent
-description: Token-optimized AI memory system across 6 dedicated files — MEMORY.md (rules + stack), PATTERNS.md (established conventions), GOTCHAS.md (non-obvious behaviors), BUGS.md (bug log with severity + strict prevention rules), PROGRESS.md (status + resume point), DECISIONS.md (every feature add/remove/change with rationale). Every file is precise and line-capped. Eliminates AI amnesia — the AI never repeats a bug it already fixed, never re-invents a pattern already established. Sources: Anthropic CLAUDE.md pattern, mem0ai/mem0 (~30k ⭐), anthropic-cookbook (~10k ⭐).
+description: AI memory system across 6 dedicated files — MEMORY.md (rules + stack), PATTERNS.md (established conventions), GOTCHAS.md (non-obvious behaviors), BUGS.md (bug log with severity + strict prevention rules), PROGRESS.md (status + resume point), DECISIONS.md (every feature add/remove/change with rationale). Each entry is written with precise, no-fluff word choice — no artificial length limits. Eliminates AI amnesia — the AI never repeats a bug it already fixed, never re-invents a pattern already established. Sources: Anthropic CLAUDE.md pattern, mem0ai/mem0 (~30k ⭐), anthropic-cookbook (~10k ⭐).
 allowed-tools:
   - "Read"
   - "Write"
@@ -39,25 +39,15 @@ You are an **AI Memory Engineer**. Your job is to ensure the AI never repeats a 
 
 ```
 project-root/
-├── MEMORY.md      ← HOT: stack, rules, AI constraints. ≤40 lines.
-├── PATTERNS.md    ← HOT: established code patterns. One line per pattern.
-├── GOTCHAS.md     ← HOT: non-obvious library/API behaviors. One line each.
-├── BUGS.md        ← HOT: bug log. Severity + solution + ⛔ NEVER rule per bug.
-├── PROGRESS.md    ← HOT: current status + exact resume point + session history.
-└── DECISIONS.md   ← HOT: every feature add/remove/change + why. Permanent record.
+├── MEMORY.md      ← stack, rules, AI constraints
+├── PATTERNS.md    ← established code conventions
+├── GOTCHAS.md     ← non-obvious library/API behaviors
+├── BUGS.md        ← bug log: severity + solution + ⛔ NEVER rule per bug
+├── PROGRESS.md    ← current status + exact resume point + session history
+└── DECISIONS.md   ← every feature add/remove/change + why. Permanent record.
 ```
 
-All 6 files are loaded at session start. All 6 are kept short by design — verbosity kills instruction-following.
-
-**Line caps (hard limits):**
-| File | Cap | Overflow action |
-|------|-----|-----------------|
-| MEMORY.md | 40 lines | Tighten rules — merge weak ones |
-| PATTERNS.md | 50 lines | Archive oldest superseded patterns to `docs/PATTERNS_ARCHIVE.md` |
-| GOTCHAS.md | 50 lines | Archive resolved gotchas to `docs/GOTCHAS_ARCHIVE.md` |
-| BUGS.md | 80 lines | Archive bugs >60 days old with no recurrence to `docs/BUGS_ARCHIVE.md` |
-| PROGRESS.md | 40 lines | Move history entries beyond last 5 to `docs/PROGRESS_ARCHIVE.md` |
-| DECISIONS.md | 80 lines | Archive decisions >90 days old to `docs/DECISIONS_ARCHIVE.md` |
+All 6 files are loaded at session start. Files grow as the project grows — no length limits. The quality constraint is **word precision per entry**, not document length.
 
 ---
 
@@ -85,7 +75,6 @@ All 6 files are loaded at session start. All 6 are kept short by design — verb
 ```
 
 **Rules for writing MEMORY.md:**
-- Max 8 rules. If you have more, your rules aren't specific enough — merge or delete.
 - Rules are behavioral: what the AI MUST or MUST NEVER do on this project.
 - Constraints are architectural: things that are permanently decided and not up for discussion.
 - No explanations. No "because". Just the rule.
@@ -219,7 +208,7 @@ Solution: Changed to Number() with explicit validation.
 - Bad: "⛔ NEVER forget to check the session" — too vague.
 - Good: "⛔ NEVER call supabase.from() inside a component without first destructuring { data, error } and checking error !== null before accessing data."
 - Severity must reflect real impact — don't downgrade to avoid looking bad.
-- Bugs are never deleted. Archive when >60 days old with no recurrence.
+- Bugs are never deleted.
 
 ---
 
@@ -253,7 +242,6 @@ Blocked: [Blocker description, or "nothing"]
 - Resume point must be file + line + exact next action. Vague entries are useless.
 - Bad: "Continue working on dashboard"
 - Good: `src/features/dashboard/DashboardPage.tsx:L84` — add useReports() call, pass data to StatsGrid
-- Keep last 5 sessions in history. Archive the rest to `docs/PROGRESS_ARCHIVE.md`.
 - Status items: ✅ means it works in production. 🚧 means partially built. ❌ means not started.
 - Never mark something ✅ that still has known bugs.
 
@@ -311,7 +299,7 @@ Impact: All session logic now goes through src/lib/supabase.ts. No next-auth imp
 - Bad: "⛔ DO NOT use the old approach" — too vague.
 - Good: "⛔ DO NOT import from next-auth anywhere. Use createClientComponentClient() from @supabase/auth-helpers-nextjs."
 - REMOVED decisions are the most important — they stop the AI from re-introducing deleted things.
-- Decisions are never deleted. Archive when >90 days old to `docs/DECISIONS_ARCHIVE.md`.
+- Decisions are never deleted.
 
 ---
 
@@ -338,11 +326,7 @@ Step 2: Update ONLY the files that have new content
   → Update Resume block and prepend new entry to Session History in PROGRESS.md
   → Update Rules or Constraints only if something explicitly changed in MEMORY.md
 
-Step 3: Check line caps
-  → Count lines in each file
-  → If any file exceeds its cap: archive oldest entries before adding new ones
-
-Step 4: Verify
+Step 3: Verify
   → Read back each updated file — confirm no duplicate entries, no formatting errors
 ```
 
@@ -399,18 +383,15 @@ At the start of every session on a project that has these files:
 4. ⛔ NEVER write vague resume points.
    "Continue on dashboard" is not a resume point. A file path and exact action is.
 
-5. ⛔ NEVER exceed the line cap without archiving first.
-   Over-long memory files cause instruction degradation — the AI ignores the earlier sections.
-
-6. ⛔ NEVER log aspirational patterns.
+5. ⛔ NEVER log aspirational patterns.
    PATTERNS.md reflects what the codebase DOES, not what you wish it did.
 
-7. ⛔ NEVER soften a ⛔ NEVER rule.
+6. ⛔ NEVER soften a ⛔ NEVER rule.
    It is a command to the AI. Write it as a direct imperative with the exact code-level detail needed to follow it.
 
-8. ⛔ NEVER skip a DECISIONS.md entry when a feature is added, removed, or changed.
+7. ⛔ NEVER skip a DECISIONS.md entry when a feature is added, removed, or changed.
    Without it, the AI will re-suggest removed features or re-implement deleted code next session.
 
-9. ⛔ NEVER write a DECISIONS.md entry without the ⛔ DO NOT field.
+8. ⛔ NEVER write a DECISIONS.md entry without the ⛔ DO NOT field.
    The ⛔ DO NOT rule is the only thing that stops the AI from undoing the decision.
 ```
