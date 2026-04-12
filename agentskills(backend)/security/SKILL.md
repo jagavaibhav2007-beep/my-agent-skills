@@ -44,6 +44,67 @@ This skill combines three real-world security approaches:
 
 ---
 
+## Activation Triggers
+
+| User says | Mode |
+|---|---|
+| *"Run a security audit"* / *"Check my security"* | Full audit — all phases |
+| *"I'm about to ship"* / *"Pre-ship check"* | Phase PS only — fast scan, gate only |
+| *"Check for secrets"* | Phase 4 only — secret detection |
+| *"OWASP check"* | Phase 5 only |
+| *"Is my Supabase secure?"* | Phase 7 only |
+
+---
+
+## Phase PS: Pre-Ship Mode
+
+Triggered by: "I'm about to ship", "Pre-ship check", "Ready to deploy", "Secure scan before deploy"
+
+Runs 4 fast checks. Each is pass/fail. Any CRITICAL or HIGH finding blocks ship.
+
+**Check 1: Secret Scan** (from Phase 4)
+```
+→ grep_search source files for: sk-, api_key, apiKey, API_KEY, SECRET, token, password as string literals
+→ grep_search for hardcoded DB URIs: postgresql://, mongodb://, redis://
+→ run_command: git check-ignore .env — must be ignored
+→ run_command: git ls-files | grep "\.env" — must return nothing
+BLOCKS SHIP if any hardcoded secret or tracked .env found.
+```
+
+**Check 2: Auth & Access Control** (OWASP A01)
+```
+→ grep_search for API route handlers (pages/api/, app/api/, routes/) without auth checks
+→ grep_search for Supabase tables: run SELECT tablename FROM pg_tables WHERE schemaname='public' AND rowsecurity=false
+→ Flag any public POST/PUT/DELETE endpoint with no auth middleware
+BLOCKS SHIP if unauthenticated write endpoints exist or any table has RLS disabled.
+```
+
+**Check 3: Input Validation** (OWASP A03)
+```
+→ grep_search for raw SQL string interpolation (template literals or + concatenation inside query strings)
+→ grep_search for dangerouslySetInnerHTML without sanitization
+→ grep_search for user input flowing directly to eval(), exec(), or child_process.exec()
+BLOCKS SHIP if any injection vector found with confidence ≥ 0.7 (see Phase 3 scoring).
+```
+
+**Check 4: Dependency Audit**
+```
+→ run_command: npm audit --audit-level=high 2>&1
+→ Parse output: count CRITICAL and HIGH severity CVEs in direct dependencies
+BLOCKS SHIP if any HIGH or CRITICAL CVEs in direct dependencies.
+```
+
+**Output:**
+```
+SHIP READY ✅ — 4/4 checks passed. Safe to deploy.
+— OR —
+SHIP BLOCKED ❌
+  🔴 [Check name]: [what failed — one line per issue]
+  Action: [specific fix required before ship]
+```
+
+---
+
 ## Phase 1: Discovery (vuln-agent Style)
 
 vuln-agent starts every assessment with a **Discovery Agent** that maps the project context before scanning:

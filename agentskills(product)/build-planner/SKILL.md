@@ -215,6 +215,8 @@ Phase 1: Foundation
   → Database schema + tables + RLS
   → Project setup + config + env variables
   (Everything else depends on this)
+  ★ SKILL: Invoke database-agent skill for schema design and migrations.
+    Output: schema files + migration commands ready to run.
 
 Phase 2: Authentication
   → Sign up, log in, log out, session management
@@ -235,10 +237,19 @@ Phase 5: UI/UX Polish
   → Responsive design, animations
   → Onboarding flow
 
-Phase 6: Deployment & Hardening
-  → Environment config
-  → Security audit (invoke security skill)
-  → Error monitoring setup
+Phase N-1: Pre-Ship Gate
+  ★ SKILL: Invoke testing-agent skill in Pre-Ship Mode:
+    "Generate tests for everything built in phases 1 through N-2.
+     Run coverage gate — must reach 70% before continuing."
+  ★ SKILL: Invoke security-agent skill in Pre-Ship Mode:
+    "Run pre-ship security scan."
+  ⛔ BLOCK Phase N if either skill returns SHIP BLOCKED ❌.
+     Do not deploy until both return SHIP READY ✅.
+
+Phase N: Deployment
+  ★ SKILL: Invoke deployment-engineer-agent skill:
+    "Deploy to [detected platform from Phase 0 stack detection]."
+  → Environment config, CI/CD wiring, error monitoring setup
 ```
 
 ---
@@ -400,9 +411,34 @@ Compile everything into a single `PLAN.md` file in the project root:
 
 ---
 
-## Phase [N]: [Final Phase]
+## Phase [N-1]: Pre-Ship Gate
 
-[Same structure...]
+**Goal:** Verify the build is shippable before any deploy commands run.
+**Dependencies:** All feature phases complete.
+**Deliverable:** SHIP READY ✅ from both testing-agent and security-agent.
+
+**Invoke:** testing-agent (Pre-Ship Mode) → security-agent (Pre-Ship Mode)
+**Gate:** Do not proceed to Phase N if either returns SHIP BLOCKED ❌.
+
+### Phase [N-1] Verification
+- [ ] testing-agent returns SHIP READY ✅ (≥ 70% coverage, all critical paths tested)
+- [ ] security-agent returns SHIP READY ✅ (4/4 checks passed)
+
+---
+
+## Phase [N]: Deploy
+
+**Goal:** Get the app live on the target platform with CI/CD wired.
+**Dependencies:** Phase [N-1] gate passed.
+**Deliverable:** App live at production URL with passing CI pipeline.
+
+**Invoke:** deployment-engineer-agent
+`"Deploy to [platform]. Stack: [stack summary]. Run all phases: pre-deploy checklist, env var audit, platform deploy, CI/CD wiring."`
+
+### Phase [N] Verification
+- [ ] App live at production URL
+- [ ] GitHub Actions CI runs on every push
+- [ ] GitHub Actions deploys on merge to main
 
 ---
 
@@ -491,8 +527,10 @@ Once PLAN.md is created, the user works through it phase by phase:
 [Repeat until all phases complete]
 ```
 
-The other skills help during execution:
-- **Debugger** — When something breaks during a phase
-- **Security** — Before shipping (Phase N)
-- **Database** — During Phase 1 (foundation)
-- **Product Critic** — After all phases are done (review what was built)
+The other skills activate automatically at the right phase:
+- **database-agent** — Invoked during Phase 1 for schema design and migrations
+- **debugger** — When something breaks during any phase
+- **testing-agent** — Invoked at Phase N-1 (Pre-Ship Gate) — runs coverage gate
+- **security-agent** — Invoked at Phase N-1 (Pre-Ship Gate) — runs 4-check scan
+- **deployment-engineer-agent** — Invoked at Phase N — deploys and wires CI/CD
+- **product-critic** — After all phases complete — reviews the shipped product

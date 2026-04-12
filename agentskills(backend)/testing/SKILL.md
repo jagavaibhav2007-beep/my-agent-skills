@@ -67,6 +67,118 @@ The user might say:
 - *"Cover this file with tests"*
 - *"I need tests before I ship"*
 - *"What's my test coverage?"*
+- *"I'm about to ship"* → **Pre-Ship Mode (Phase PS)**
+- *"Pre-ship check"* → **Pre-Ship Mode (Phase PS)**
+- *"Ready to deploy"* → **Pre-Ship Mode (Phase PS)**
+- *"Check coverage before I deploy"* → **Pre-Ship Mode (Phase PS)**
+
+When any pre-ship trigger is detected: skip Phases 1–5 and go directly to Phase PS.
+
+---
+
+## Phase PS: Pre-Ship Mode
+
+**Triggered by:** "I'm about to ship", "pre-ship check", "ready to deploy", "check coverage before I deploy"
+
+Runs autonomously. No user prompting needed. Produces a binary SHIP READY / SHIP BLOCKED signal.
+
+### PS1 — Scan All Source Files for Untested Code
+
+```
+1. list_dir on src/ (or app/) — map all source directories
+2. Find all source files (exclude node_modules, dist, .next, __pycache__, *.config.*):
+   → grep_search for *.ts, *.tsx, *.js, *.jsx files
+3. Find all test files:
+   → grep_search for *.test.ts, *.test.tsx, *.spec.ts, *.spec.tsx, test_*.py
+4. For each source file: check for a matching test file
+   → [filename].ts → [filename].test.ts OR __tests__/[filename].test.ts
+5. Build two lists: COVERED (has a test file) and UNTESTED (no test file)
+```
+
+### PS2 — Prioritize Critical Paths
+
+From the UNTESTED list, classify by category:
+
+```
+CRITICAL — must have tests before ship:
+  1. API route handlers — any file in pages/api/, app/api/, routes/, controllers/
+  2. Auth flows — any file containing: signIn, signUp, login, register, session, jwt
+  3. Data mutations — any file containing: create, update, delete, insert, mutation
+
+HIGH — should have tests before ship:
+  4. Utility functions imported in 3+ other files
+  5. Custom hooks used in 3+ components
+
+LOWER — can skip for first ship:
+  6. Pure UI components with no logic
+  7. Static pages, config files
+```
+
+### PS3 — Auto-Generate Tests for All Critical Paths
+
+```
+For each CRITICAL and HIGH file with no test coverage:
+  → Read the source file fully
+  → Apply Phase 2 test generation (Categories 1–4) for the file type
+  → Write the test file immediately
+  → run_command: npm test [new test file path] (or pytest [test file])
+  → If test fails: debug and fix until passing
+  → Do NOT count failing tests toward coverage
+```
+
+### PS4 — Run Coverage Loop
+
+```
+After generating tests for all untested critical paths:
+  → run_command: npx vitest run --coverage
+     (or: jest --coverage / pytest --cov=src --cov-report=term-missing)
+  → Parse overall coverage percentage
+
+Gate: 70% minimum
+
+If coverage < 70%: run additional rounds (max 3):
+  → Identify specific uncovered lines from coverage report
+  → Generate targeted tests for those exact lines
+  → Re-run coverage
+  → If still < 70% after 3 rounds: output SHIP BLOCKED with specific file list
+```
+
+### PS5 — Pre-Ship Output
+
+```
+=== PRE-SHIP TESTING REPORT ===
+
+Coverage: [X]% (target: 70%)
+
+Tests generated this session:
+  [test file] → covers [source file] — [N] tests — ✅ all passing
+
+Previously existing tests: ✅ [N] passing
+
+Critical paths:
+  ✅ API routes covered: [N/N]
+  ✅ Auth flows covered: [N/N]
+  ✅ Data mutations covered: [N/N]
+  ⚠️ Untestable (requires real OAuth/Stripe): [list]
+```
+
+If coverage ≥ 70% AND all critical paths covered:
+```
+SHIP READY ✅
+[N] tests passing. Coverage: [X]%. Proceed to security-agent pre-ship check.
+```
+
+If coverage < 70% OR any CRITICAL path untested:
+```
+SHIP BLOCKED ❌
+Reason: coverage [X]% < 70% target / [N] critical paths untested
+
+Still needs tests:
+  ❌ [filepath] — [category]
+  ❌ [filepath] — [category]
+
+Fix: run testing skill again targeting these files. Do NOT deploy until SHIP READY.
+```
 
 ---
 

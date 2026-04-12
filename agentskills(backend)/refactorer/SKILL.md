@@ -461,6 +461,22 @@ Scaling wins:
 Log every structural change to MEMORY.md using the docs-memory skill format:
 `[DATE] WHOLE-REFACTOR — [Pass] — [Change] → ⛔ NEVER: [prevention rule]`
 
+## Handoff → Testing Skill
+
+After the whole-codebase refactor completes:
+```
+→ run_command: npm test — confirm existing tests still pass with the refactored code.
+→ run_command: npx vitest run --coverage (or jest --coverage)
+  Read the coverage percentage.
+→ If no tests exist OR coverage < 60%:
+  Invoke the testing-agent skill with:
+  "Generate a baseline test suite for this freshly refactored codebase.
+   Prioritize: utility functions, API route handlers, and custom hooks.
+   These were just restructured and need behavioral coverage before the next feature."
+→ Reason: refactored code has no regression protection until tests exist.
+  The next feature addition WILL silently break something without a test suite.
+```
+
 ---
 
 ## Phase 0: Verify Stack Before Doing Anything

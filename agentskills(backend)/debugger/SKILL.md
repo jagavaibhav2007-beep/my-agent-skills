@@ -248,6 +248,22 @@ Tests: ✅ all pass / ⚠️ [N] failures (pre-existing)
 Log every fixed bug into MEMORY.md:
 `[DATE] AUTO-SCAN [file:line] — [Bug] → [Fix] → ⛔ NEVER: [prevention rule]`
 
+## Handoff → Testing Skill
+
+After auto-fix completes, check for regression test coverage:
+```
+→ For each file in the "Fixed" list:
+  grep_search for a matching .test. or .spec. file in the same directory
+→ If ANY fixed file has no test file:
+  Invoke the testing-agent skill with:
+  "Generate regression tests for these files that just had bugs fixed: [list].
+   Focus on testing the exact behavior that was broken and is now fixed —
+   each test should fail on the pre-fix code and pass on the fixed code."
+→ If ALL fixed files already have tests:
+  run_command: npm test — confirm all pass with the fixes applied.
+```
+⛔ NEVER ship a bug fix without at least one test that would have caught the bug before it reached production.
+
 ---
 
 ## Phase 0: Stack Identification (Always First)

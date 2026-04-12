@@ -13,6 +13,7 @@ Custom agent skills that define **how Antigravity behaves** when performing back
 | 🧪 **[testing](./testing/SKILL.md)** | [Qodo Cover](https://github.com/qodo-ai/qodo-cover) (AGPL-3.0), [CoverUp](https://github.com/plasma-umass/coverup) (Apache-2.0), [EvoMaster](https://github.com/WebFuzzing/EvoMaster) (Apache-2.0) | Generate unit/integration/API tests for existing code, iterative coverage loop |
 | 🧠 **[docs-memory](./docs-memory/SKILL.md)** | [Auto Codebase Documenter](https://github.com/abryant710/auto-codebase-documenter) (MIT), [Mem0](https://github.com/mem0ai/mem0) (Apache-2.0), [Cognee](https://github.com/topoteretes/cognee) (Apache-2.0) | Auto-generate project docs + maintain AI memory so the agent never repeats mistakes |
 | 🤖 **[ai-engineer](./ai-engineer/SKILL.md)** | [LangChain](https://github.com/langchain-ai/langchain), [LlamaIndex](https://github.com/run-llama/llama_index), [CrewAI](https://github.com/crewAIInc/crewAI) | Build RAG systems, AI agents, and production-scale AI applications |
+| 🚀 **[deployment-engineer](./deployment-engineer/SKILL.md)** | [Vercel](https://vercel.com/docs), [Railway](https://docs.railway.app), [Fly.io](https://fly.io/docs), [actions/starter-workflows](https://github.com/actions/starter-workflows) | Detect stack → pick platform → pre-deploy checklist → env var audit → CI/CD wiring → failure diagnosis |
 
 ## Key Techniques Learned from Each Repo
 
@@ -61,6 +62,12 @@ Custom agent skills that define **how Antigravity behaves** when performing back
 - **Multi-Agent Orchestration** — Role-based agents, structured task delegation, and stateful graphs
 - **Production Observability** — The MELT framework, rate limiting, retries, and Guardrails
 
+### From Vercel, Railway, Fly.io docs + GitHub Actions starter-workflows (Deployment Engineer)
+- **Read before recommending** — Stack detection from package.json + existing config files before any platform decision
+- **Platform decision tree** — Next.js→Vercel, Express/Node→Railway, containerized→Fly.io
+- **Pre-deploy gate** — Build passes, tests pass, no secrets in source, .env gitignored, env vars documented
+- **Failure diagnosis** — 6 pattern-matched failure categories (build, runtime, port, env, health check, Vercel-specific)
+
 ## How to Activate a Skill
 
 Simply ask Antigravity to perform a task related to the skill:
@@ -72,6 +79,7 @@ Simply ask Antigravity to perform a task related to the skill:
 - **Testing:** *"Write tests for this"* or *"Generate tests for what I built"*
 - **Docs & Memory:** *"Document my project"* or *"Update the memory"*
 - **AI Engineer:** *"Add AI to my app"* or *"Build a RAG system"*
+- **Deployment Engineer:** *"Deploy my app"* or *"Set up CI/CD"* or *"It works locally but not in production"*
 
 ## Folder Structure
 
@@ -90,8 +98,10 @@ agentskills(backend)/
 │   └── SKILL.md           ← Qodo Cover + CoverUp + EvoMaster
 ├── docs-memory/
 │   └── SKILL.md           ← Auto Documenter + Mem0 + Cognee + Claude Code
-└── ai-engineer/
-    └── SKILL.md           ← LangChain + LlamaIndex + CrewAI
+├── ai-engineer/
+│   └── SKILL.md           ← LangChain + LlamaIndex + CrewAI
+└── deployment-engineer/
+    └── SKILL.md           ← Vercel + Railway + Fly.io + GitHub Actions
 ```
 
 ## Companion Skills
