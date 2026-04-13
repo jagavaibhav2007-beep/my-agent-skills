@@ -580,5 +580,5 @@ Short, factual, no fluff:
 ⚠️ Manual verification needed: [anything that requires user to check in browser]
 ```
 
-Log the bug + prevention rule into MEMORY.md using the docs-memory skill format:
+Log the bug + prevention rule into BUGS.md using the docs-memory skill format:
 `[DATE] [File:Line] — [Bug] → [Fix] → ⛔ NEVER: [prevention rule]`
