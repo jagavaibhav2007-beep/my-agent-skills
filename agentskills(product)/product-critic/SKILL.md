@@ -37,12 +37,24 @@ Your report answers one question: **"If I showed this app to 100 real people, wh
 - **Positive findings matter** — Report what's genuinely good, not just problems
 - Everything must be **grounded in what real users would actually experience**
 
+## Activation Table
+
+| User says | Mode |
+|---|---|
+| "review my app" / "critique my product" / "roast my app" | Full audit — all phases |
+| "how does my app compare to competitors?" | Phase 3 only — competitive research |
+| "what features am I missing?" | Phase 5 only — feature gap analysis |
+| "check my UX" / "audit my usability" | Phase 2 (heuristics) + Phase 2b (performance) |
+| "accessibility check" / "a11y audit" | Phase 2c only |
+
+---
+
 ## Prerequisites
 
 - Access to the project's source code OR a PRD document
 - Access to the browser (for running and visually inspecting the app)
 - Access to web search (for competitor and UX research)
-
+- If no browser access: note it explicitly — visual UX findings will be code-inferred only
 ---
 
 ## Phase 1: Product Discovery — Understand What Was Built
@@ -168,6 +180,106 @@ The "Would You Actually Use This?" Test:
 6. What's the first thing you'd complain about?
 7. What's the one feature that would make you say "wow"?
 8. If this app disappeared tomorrow, would anyone notice?
+```
+
+---
+
+## Phase 2b: Performance Assessment
+
+Users abandon pages that take > 3 seconds. Check actual metrics, not just "feels fast."
+
+```
+LOAD PERFORMANCE (if browser available):
+→ Open DevTools → Network tab → hard refresh → record:
+  - Time to First Byte (TTFB): should be < 200ms
+  - First Contentful Paint (FCP): should be < 1.8s
+  - Largest Contentful Paint (LCP): should be < 2.5s (Google's Core Web Vitals threshold)
+  - Total Blocking Time (TBT): should be < 200ms
+
+→ Run Lighthouse audit (DevTools → Lighthouse → Mobile):
+  - Performance score < 50: 🔴 CRITICAL
+  - Performance score 50–89: 🟠 SIGNIFICANT
+  - Performance score ≥ 90: ✅ GOOD
+
+CODE-LEVEL PERFORMANCE (no browser needed):
+→ grep_search for <img without loading="lazy" — images block render
+→ grep_search for large synchronous imports in page entry points
+→ run_command: npm run build → check JS chunk sizes
+  - Any chunk > 250KB: flag for code splitting
+→ grep_search for useEffect with [] that fires API calls on every render
+  - Missing deps array = refetch loop = visible lag
+
+REPORT FORMAT FOR FINDINGS:
+  ⏱️ [Metric]: [value] — [threshold] → [severity]
+  e.g. "⏱️ LCP: 4.2s — threshold 2.5s → 🔴 CRITICAL: users on mobile will abandon"
+```
+
+## Phase 2c: Accessibility Audit (WCAG 2.1 AA)
+
+Accessibility issues affect ~15% of users globally. Many are also legal requirements.
+
+```
+CONTRAST RATIO (most common failure):
+→ Check text vs background color combinations:
+  - Normal text (< 18px): minimum 4.5:1 ratio
+  - Large text (≥ 18px or bold 14px): minimum 3:1 ratio
+  - Use: grab hex codes from CSS → check contrast ratio online
+→ grep_search for text-gray-400 or text-slate-400 on white/light backgrounds
+  (these frequently fail at 2.5:1–3:1, below AA threshold)
+
+KEYBOARD NAVIGATION:
+→ grep_search for onClick without onKeyDown/onKeyPress on non-button elements
+  (divs/spans with click handlers are invisible to keyboard users)
+→ grep_search for tabIndex="-1" on interactive elements
+→ Check: can the core user journey complete with keyboard only?
+
+IMAGES:
+→ grep_search for <img without alt attribute or with alt=""
+  (empty alt is valid for decorative images, but must be intentional)
+→ grep_search for <img alt={} where alt receives dynamic content — verify it's meaningful
+
+FORMS:
+→ grep_search for <input without associated <label (for/id pair or aria-label)
+→ grep_search for placeholder= used as the only label — fails when field is filled
+
+ARIA:
+→ grep_search for role="button" on non-button elements without keyboard handlers
+→ grep_search for aria-hidden="true" on focusable elements
+
+SEVERITY MAPPING:
+  Missing alt on meaningful image: 🔴 CRITICAL (screen reader users see nothing)
+  Contrast failure on body text: 🔴 CRITICAL (affects all low-vision users)
+  Missing form labels: 🟠 SIGNIFICANT
+  No keyboard nav on interactive element: 🟠 SIGNIFICANT
+  Missing focus indicators: 🟡 MINOR
+```
+
+## Phase 2d: Mobile Experience Check
+
+Over 60% of web traffic is mobile. A desktop-only experience loses most users.
+
+```
+RESPONSIVE LAYOUT:
+→ grep_search for fixed pixel widths > 375px on layout containers (width: 800px etc.)
+→ grep_search for overflow-x: hidden on body — often hides broken mobile layouts
+→ Check: does the app use a viewport meta tag?
+  grep_search for <meta name="viewport" — must exist with content="width=device-width"
+
+TOUCH TARGETS:
+→ grep_search for buttons/links with h-6 w-6 or smaller (< 44px touch target)
+  Apple HIG and WCAG both require minimum 44x44px touch targets
+→ grep_search for elements spaced < 8px apart (touch misfire zone)
+
+MOBILE-SPECIFIC PATTERNS:
+→ Does core user journey complete on 375px viewport without horizontal scroll?
+→ Are forms usable on mobile? (input type="email" triggers email keyboard, etc.)
+  grep_search for <input type="text" where email/tel/number would be more appropriate
+
+SEVERITY:
+  No viewport meta tag: 🔴 CRITICAL (page renders at desktop size on mobile)
+  Core journey requires horizontal scroll: 🔴 CRITICAL
+  Touch targets < 44px: 🟠 SIGNIFICANT
+  Fixed widths causing overflow: 🟠 SIGNIFICANT
 ```
 
 ---
@@ -305,6 +417,24 @@ significant findings from this analysis.]
 
 ### [Finding 2]: [Title]
 [Same structure...]
+
+---
+
+## 4b. Performance Findings
+| Metric | Measured Value | Threshold | Status |
+|---|---|---|---|
+| LCP | [Xs] | < 2.5s | ✅/🟠/🔴 |
+| FCP | [Xs] | < 1.8s | ✅/🟠/🔴 |
+| Lighthouse Mobile | [score] | ≥ 90 | ✅/🟠/🔴 |
+| Largest JS chunk | [KB] | < 250KB | ✅/🟠/🔴 |
+
+## 4c. Accessibility Findings (WCAG 2.1 AA)
+| Issue | Severity | Location | Fix |
+|---|---|---|---|
+| [e.g. Contrast 2.5:1 on body text] | 🔴 | [file:line] | [change color to #xxx] |
+
+## 4d. Mobile Experience
+[Pass/fail for: viewport tag, touch targets, horizontal scroll, form input types]
 
 ---
 

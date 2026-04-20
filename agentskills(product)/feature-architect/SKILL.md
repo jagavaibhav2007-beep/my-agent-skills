@@ -50,6 +50,17 @@ OUTPUT: Implementation plan for ONE feature
         that fits the existing architecture
 ```
 
+## Activation Table
+
+| User says | Mode |
+|---|---|
+| "read the critique and pick a feature" / "what should I build next?" | Full flow — Phase 0 → 1 → 2 → 3 → 4 |
+| "plan [specific feature]" / "implement [named feature]" | Skip Phase 1+3, go Phase 0 → 2 → 4 directly |
+| "score these features" / "which feature fits best?" | Phase 3 only — scoring table |
+| "write the implementation plan for [feature]" | Phase 0 → 2 → 4 only |
+
+---
+
 ## Core Philosophy
 
 > **"The best feature to build next is the one your architecture is already 90% ready for."**
@@ -58,6 +69,36 @@ OUTPUT: Implementation plan for ONE feature
 - If the app uses Supabase, the feature should use Supabase — don't introduce Firebase
 - If there's an MCP plugin available that does the hard work, use it
 - The plan should feel like **a natural extension** of the codebase, not a bolt-on
+
+---
+
+## Phase 0: Read Memory Before Picking Anything (Mandatory)
+
+Running this before Phase 1 prevents the #1 failure mode: recommending a feature the user already deliberately rejected.
+
+```
+STEP 1 — READ DECISIONS.md (if exists):
+  view_file DECISIONS.md
+  → Extract every entry marked REMOVED
+  → These are FORBIDDEN features — do NOT score them, do NOT mention them as candidates
+  → Extract every entry marked ADDED — these are already built, do NOT plan them again
+  → List every ⛔ DO NOT entry — these constrain what can be planned
+
+STEP 2 — READ PROGRESS.md (if exists):
+  view_file PROGRESS.md
+  → Note what's ✅ already complete — skip these in Phase 1 feature extraction
+  → Note what's 🚧 in progress — flag these as "already in flight" if they appear as candidates
+
+STEP 3 — READ MEMORY.md (if exists):
+  view_file MEMORY.md
+  → Extract architectural constraints (e.g., "No Redux", "Supabase only", "No new auth providers")
+  → These act as hard caps on the Infrastructure Reuse score in Phase 3
+
+STEP 4 — PRINT CONSTRAINTS BEFORE PROCEEDING:
+  FORBIDDEN FEATURES: [from REMOVED entries]
+  IN-FLIGHT FEATURES: [from PROGRESS.md 🚧]
+  ARCHITECTURAL CONSTRAINTS: [from MEMORY.md]
+```
 
 ---
 
@@ -223,11 +264,33 @@ SOLO DEV FEASIBLE (Can one developer build this?)
   1 = Needs a team or months of work
 ```
 
+### Anti-Vibe Score Caps (apply before totalling):
+
+```
+HARD CAPS — override scoring if any of these apply:
+
+→ Feature is in DECISIONS.md REMOVED list:
+  DISQUALIFIED — remove from scoring table entirely, do not score
+
+→ Feature requires a library NOT in package.json AND not easily addable:
+  Infrastructure Reuse score capped at MAX 2 (regardless of other factors)
+
+→ Feature requires a new auth provider when one already exists:
+  Infrastructure Reuse score capped at MAX 1 (changing auth = full rewrite risk)
+
+→ Feature violates an architectural constraint from MEMORY.md:
+  DISQUALIFIED — flag violation to user instead of scoring
+
+→ Feature is already 🚧 in-progress per PROGRESS.md:
+  Remove from scoring — it's already being built, not a candidate
+```
+
 ### Selection Formula:
 
 ```
 FIT SCORE = Infrastructure Reuse + MCP Leverage + Pattern Match + User Impact + Solo Dev Feasible
 
+Apply anti-vibe caps FIRST, then total.
 Pick the feature with the HIGHEST total score.
 In case of tie → prefer higher Infrastructure Reuse (less new code = less risk).
 ```
@@ -391,22 +454,35 @@ The user might say:
 
 ---
 
-## Workflow: Product Critic → Feature Architect
+## Workflow: Product Critic → Feature Architect → Build Planner
 
-This skill is designed to work as a pipeline with the Product Critic:
+Full pipeline:
 
 ```
-Step 1: User asks → "Critique my app"
-        → Product Critic Agent runs
-        → Produces: Product Critique & Research Report
+Step 1: "Critique my app"
+        → product-critic runs
+        → Produces: Product Critique & Research Report (.md file)
 
-Step 2: User asks → "Now pick a feature and plan it"
-        → Feature Architect Agent runs
-        → Reads the critique report
-        → Reads the codebase
-        → Picks ONE feature
-        → Produces: Implementation Plan
+Step 2: "Pick a feature and plan it"
+        → feature-architect runs (this skill)
+        → Phase 0: reads DECISIONS.md, PROGRESS.md, MEMORY.md
+        → Phase 1: extracts candidates from critique report
+        → Phase 2: audits codebase architecture
+        → Phase 3: scores candidates, applies anti-vibe caps
+        → Phase 4: produces Implementation Plan for ONE feature
 
-Step 3: User → Builds the feature using the plan
-        → (Other skills help: Debugger, Security, Database)
+Step 3: "Turn this into a phased build plan"
+        → build-planner runs
+        → Takes Phase 4 Implementation Plan as input
+        → Breaks it into atomic tasks with verification steps
+        → Produces PLAN.md for AI agent execution
+
+Step 4: Execute PLAN.md phase by phase
+        → database-agent, debugger, testing-agent, security-agent,
+          deployment-engineer-agent activate at the right phases
+
+Step 5: After ship → run product-critic again on the new feature
+        → Closes the feedback loop
 ```
+
+**Note:** Feature Architect produces a WHAT and WHY. Build Planner produces the HOW. Both are needed for a complete build.
