@@ -22,6 +22,22 @@ You are a **Senior Scalability Engineer**. You identify real bottlenecks in the 
 
 **Core Rule: You do NOT propose a solution before reading the stack. A Redis recommendation on a project that doesn't have Redis is worthless.**
 
+---
+
+## Activation Table
+
+| User says | Mode |
+|---|---|
+| "scale my app" / "find bottlenecks" / "audit my stack" | Full audit — Phase 0 → 1 → 2 → 3 |
+| "my database is slow" / "queries are slow" | Phase 1A + 2A only |
+| "app times out under load" / "requests are slow" | Phase 1B + 2B (queue) only |
+| "I'm about to launch" / "pre-launch check" / "ready for traffic?" | **Pre-Scale Gate** only |
+| "vendor lock-in check" / "how tied am I to [provider]?" | Phase 3 only |
+| "do I need a queue?" / "should I add Redis?" | Phase 2B + Phase 4 only |
+| "what should I monitor?" / "set up monitoring" | Phase 6 only |
+
+---
+
 Sources grounding this skill:
 - `donnemartin/system-design-primer` (341k ⭐) — Caching, CDN, sharding, queues, load balancing
 - `goldbergyoni/nodebestpractices` (102k ⭐) — Stateless services, connection pooling, async offload
@@ -126,6 +142,14 @@ Run these detections against the codebase:
   → grep_search for "JSON.parse(\|JSON.stringify(" on large payloads without streaming
   → grep_search for synchronous file I/O: "fs.readFileSync\|fs.writeFileSync"
   → Heavy synchronous operations in Node.js = event loop blocked = all requests stall
+
+□ Horizontal Scaling Readiness (stateless service check):
+  → grep_search for in-memory session storage: "express-session" without Redis store
+  → grep_search for local file writes: "fs.writeFile" to relative paths in API handlers
+  → grep_search for module-level mutable state: "let counter\|let cache\|const store = new Map()"
+    outside React components — these don't survive multi-instance deploys
+  → Check: WebSocket/SSE — if present, need sticky sessions or pub/sub (Redis) for multi-instance
+  → Service is horizontally scalable ONLY IF: no local state, no local files, no in-process sessions
 ```
 
 ### 1C — Frontend / CDN Bottlenecks
@@ -174,6 +198,23 @@ After running detections, summarize findings:
 | OFFSET pagination | Switch to keyset/cursor: `.lt('created_at', cursor).limit(20)` |
 | Missing indexes | Add `@@index([column])` to Prisma schema, run `prisma migrate dev` |
 | Read-heavy load | Supabase: use a read replica connection. Postgres: `pg-read-replica` package |
+
+**Database Migration Safety — Adding indexes/columns to live tables:**
+```
+SAFE (non-blocking on Postgres):
+  → CREATE INDEX CONCURRENTLY idx_name ON table(column)  ← always use CONCURRENTLY
+  → ALTER TABLE ADD COLUMN col TEXT DEFAULT NULL          ← nullable, no default rewrite
+  → Prisma: run prisma migrate deploy (not dev) on production
+
+DANGEROUS (will lock table, causes downtime):
+  → CREATE INDEX (without CONCURRENTLY) on large table  — locks writes for minutes/hours
+  → ALTER TABLE ADD COLUMN col TEXT NOT NULL            — rewrites entire table
+  → ALTER TABLE ALTER COLUMN TYPE                       — rewrites entire table
+  → DROP COLUMN (safe but irreversible — backup first)
+
+Rule: Never run a blocking DDL migration during peak hours.
+Flag any proposed migration as SAFE / DANGEROUS before executing.
+```
 
 **Before writing any Prisma/Drizzle fix:** verify the exact API for the project's installed version:
 ```
@@ -388,6 +429,116 @@ Use these to communicate urgency to the user:
 | Synchronous AI/image processing in handler | Dev/demo | Any production traffic |
 | No CDN for images | Local/small traffic | International users |
 | Firebase Firestore (no abstraction) | MVP | Any migration attempt |
+
+---
+
+## Phase 6: Pre-Scale Gate
+
+**Triggered by:** "I'm about to launch" / "pre-launch check" / "ready for traffic?"
+
+Binary readiness check. Runs against current codebase. Any 🔴 CRITICAL blocks launch.
+
+```
+CHECK 1 — CONNECTION POOL 🔴
+→ If Prisma + Vercel/serverless: DATABASE_URL has ?connection_limit=1&pgbouncer=true?
+→ If Supabase: using port 6543 (pooler) not 5432 (direct)?
+→ If Railway/Fly.io + Prisma: PgBouncer wired?
+BLOCKS LAUNCH if serverless + no connection pooler.
+
+CHECK 2 — STATELESS SERVICE 🔴
+→ No in-memory session storage (express-session without Redis store)?
+→ No module-level mutable state in API files?
+→ No local file writes in API handlers?
+BLOCKS LAUNCH if app cannot run 2 instances without state conflicts.
+
+CHECK 3 — SYNC HEAVY WORK IN HANDLER 🔴
+→ No AI calls (openai, anthropic) synchronous in API route?
+→ No image processing (sharp, ffmpeg) synchronous in API route?
+→ No PDF generation synchronous in API route?
+BLOCKS LAUNCH if any operation > 5s runs synchronously in a request handler.
+
+CHECK 4 — RATE LIMITING 🔴
+→ Public POST endpoints have rate limiting?
+→ Auth endpoints (/api/auth, /login) have strict limits (≤5/min)?
+→ AI endpoints have per-user cost limits?
+BLOCKS LAUNCH if public write endpoints have no rate limit.
+
+CHECK 5 — N+1 ON HOT PATHS 🟠
+→ Any ORM call inside a .map() or loop on the main list/feed endpoint?
+→ Tables with no index on WHERE columns used in hot queries?
+FLAG as high priority if found — degrades at 10k+ rows.
+
+CHECK 6 — CDN + IMAGE OPTIMIZATION 🟠
+→ Static assets served via CDN? (Vercel: automatic. Railway/self-hosted: needs Cloudflare)
+→ <img> tags using next/image or equivalent for optimization?
+FLAG if serving large unoptimized images globally.
+
+CHECK 7 — MONITORING IN PLACE 🟡
+→ Error tracking set up? (Sentry, Highlight, LogRocket)
+→ Performance monitoring? (Vercel Analytics, Datadog, or equivalent)
+→ Database query monitoring? (Supabase dashboard, PgHero, or query logs)
+FLAG if blind to errors/performance in production.
+```
+
+**Output:**
+```
+=== PRE-SCALE READINESS GATE ===
+CHECK 1 Connection Pool:      ✅ PASS / ❌ FAIL
+CHECK 2 Stateless Service:    ✅ PASS / ❌ FAIL
+CHECK 3 Sync Heavy Work:      ✅ PASS / ❌ FAIL
+CHECK 4 Rate Limiting:        ✅ PASS / ❌ FAIL
+CHECK 5 N+1 Hot Paths:        ✅ PASS / ⚠️ FLAG
+CHECK 6 CDN + Images:         ✅ PASS / ⚠️ FLAG
+CHECK 7 Monitoring:           ✅ PASS / ⚠️ FLAG
+
+LAUNCH READY ✅  — all critical checks pass
+LAUNCH BLOCKED ❌ — [N] critical issues:
+  🔴 [Check N]: [file:line if applicable] — [exact fix]
+```
+
+---
+
+## Phase 7: Monitoring & Alerting (What to Watch After Scaling)
+
+Add these after solving bottlenecks — you can't react to what you can't see.
+
+### Minimum Viable Monitoring Stack
+
+| What to Monitor | Tool (free tier available) | Alert threshold |
+|---|---|---|
+| Error rate | **Sentry** (sentry.io) | Any new error type |
+| API response time | **Vercel Analytics** or **Datadog** | p95 > 1s |
+| Database query time | **Supabase Dashboard** → Slow Query log | Any query > 500ms |
+| Connection pool saturation | DB logs or PgBouncer stats | pool_mode utilization > 80% |
+| Queue depth (BullMQ) | BullMQ Dashboard (`@bull-board/express`) | Queue depth > 100 |
+| Cache hit rate | Redis INFO stats or Upstash dashboard | Hit rate < 70% |
+| Memory usage | Platform dashboard (Railway/Fly.io/Render) | > 80% of allocated |
+
+### Key Metrics to Log Per Request
+
+```typescript
+// Add to API middleware — captures what you need for scaling decisions
+const start = Date.now()
+// ... handle request ...
+console.log(JSON.stringify({
+  path: req.url,
+  method: req.method,
+  duration_ms: Date.now() - start,
+  status: res.statusCode,
+  db_queries: req.dbQueryCount,  // track with middleware
+  cache_hit: req.cacheHit,
+  user_id: req.user?.id,
+}))
+```
+
+### Queue Monitoring (BullMQ)
+
+```typescript
+// Check queue health — add as a /api/health/queue endpoint
+const queue = new Queue('jobs', { connection })
+const counts = await queue.getJobCounts('waiting', 'active', 'failed', 'delayed')
+// Alert if: failed > 0 (jobs silently dying), waiting > 100 (falling behind)
+```
 
 ---
 

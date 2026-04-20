@@ -57,6 +57,57 @@ This skill adapts GSD's approach for your workflow in Antigravity.
 
 ---
 
+## Phase 0: Read Before Planning (Always First — Non-Negotiable)
+
+**Greenfield vs Brownfield determines everything. Get this wrong and the plan is useless.**
+
+```
+STEP 1 — DETECT PROJECT TYPE:
+  list_dir on project root
+  → If empty or only README: GREENFIELD — proceed to Phase 1
+  → If source files exist: BROWNFIELD — continue steps below
+
+STEP 2 — READ EXISTING STACK (Brownfield only):
+  Read package.json / requirements.txt / pyproject.toml
+  → Identify: framework, DB/ORM, auth, state management, testing framework
+  → This locks the plan — never plan a library that contradicts what's installed
+  → Example: if Zustand is installed, never plan Redux. If Drizzle exists, never plan Prisma.
+
+STEP 3 — READ DECISIONS.md (if exists):
+  view_file DECISIONS.md
+  → Read every ⛔ DO NOT entry
+  → Any feature the user deliberately removed must NOT appear in the plan
+  → Log what was removed and why before writing a single task
+
+STEP 4 — READ PROGRESS.md (if exists):
+  view_file PROGRESS.md
+  → Identify what's already ✅ built — do NOT plan work that's done
+  → Identify what's 🚧 in progress — plan continuation, not restart
+
+STEP 5 — MAP EXISTING CODE:
+  list_dir src/ (or app/)
+  grep_search for key patterns: auth handlers, DB queries, main components
+  → Build a "what already exists" list before planning what to build
+
+STEP 6 — ANTI-VIBE CHECK:
+  Before generating any task, confirm:
+  □ Every library referenced in planned tasks exists in package.json
+  □ No planned folder structure contradicts existing folder structure
+  □ No planned pattern contradicts patterns already established in codebase
+  If any conflict found: resolve by matching existing patterns, not introducing new ones
+```
+
+**Print this before Phase 1:**
+```
+PROJECT TYPE: Greenfield / Brownfield
+EXISTING STACK: [list from package.json]
+ALREADY BUILT: [from PROGRESS.md or code scan]
+DECISIONS TO RESPECT: [from DECISIONS.md ⛔ DO NOT entries]
+SAFE TO PLAN: [what's genuinely not built yet]
+```
+
+---
+
 ## How AI Coding Agents Actually Work — Why Planning Matters
 
 ### Gemini's Prompting Guide Says:
@@ -242,7 +293,7 @@ Phase N-1: Pre-Ship Gate
     "Generate tests for everything built in phases 1 through N-2.
      Run coverage gate — must reach 70% before continuing."
   ★ SKILL: Invoke security-agent skill in Pre-Ship Mode:
-    "Run pre-ship security scan."
+    "Run pre-ship security scan — all 8 checks."
   ⛔ BLOCK Phase N if either skill returns SHIP BLOCKED ❌.
      Do not deploy until both return SHIP READY ✅.
 
@@ -351,6 +402,44 @@ Running the migration creates the study_modules table with full RLS — users ca
 
 ---
 
+## Phase 4b: Feasibility Gate (Before Writing PLAN.md)
+
+Before committing to PLAN.md, run this check. Saves hours of building the wrong thing.
+
+```
+FEASIBILITY CHECK:
+━━━━━━━━━━━━━━━━━
+
+1. SCOPE SANITY
+   □ Phase count: 3–6 phases for MVP? If > 6 phases → scope too large, cut V1 features.
+   □ Task count: 2–5 tasks per phase? If > 5 → split the phase.
+   □ Is the core value delivered by Phase 3? If not → reorder phases.
+
+2. STACK CONFLICTS (Brownfield only)
+   □ Every library in planned tasks exists in package.json?
+   □ Every file path matches existing folder conventions?
+   □ No pattern contradicts PATTERNS.md (if exists)?
+
+3. REMOVED FEATURES (DECISIONS.md check)
+   □ Zero planned tasks reference features listed as REMOVED in DECISIONS.md?
+
+4. EXTERNAL DEPENDENCIES
+   □ Any planned tasks require an API/service not yet set up?
+      → Flag as "PREREQUISITE: set up [service] before this phase"
+   □ Any tasks require paid tiers or billing setup?
+      → Flag explicitly so user isn't surprised
+
+5. AMBIGUITY CHECK
+   □ Every task has a concrete "Done When" statement?
+   □ No task uses vague verbs: "handle", "manage", "deal with" → replace with specific verbs
+   □ Every file path is absolute, not relative?
+
+OUTPUT: either proceed to Phase 5, or surface blockers to user first:
+  "Before I write PLAN.md, I need to flag: [blocker list]"
+```
+
+---
+
 ## Phase 5: Write PLAN.md
 
 Compile everything into a single `PLAN.md` file in the project root:
@@ -422,7 +511,7 @@ Compile everything into a single `PLAN.md` file in the project root:
 
 ### Phase [N-1] Verification
 - [ ] testing-agent returns SHIP READY ✅ (≥ 70% coverage, all critical paths tested)
-- [ ] security-agent returns SHIP READY ✅ (4/4 checks passed)
+- [ ] security-agent returns SHIP READY ✅ (8/8 checks passed)
 
 ---
 
@@ -464,6 +553,8 @@ with links to documentation consulted]
 ---
 
 ## Rules for This Agent
+
+0. **Read before planning (Phase 0 is mandatory)** — For brownfield projects: read package.json, DECISIONS.md, PROGRESS.md before generating a single task. Plans that ignore existing code waste hours.
 
 1. **Understand first, plan second** — Never start planning until you fully understand what the user wants. Ask questions if unclear.
 
@@ -528,9 +619,10 @@ Once PLAN.md is created, the user works through it phase by phase:
 ```
 
 The other skills activate automatically at the right phase:
+- **docs-memory** — Invoked at Phase 0 (read DECISIONS.md + PROGRESS.md before planning)
 - **database-agent** — Invoked during Phase 1 for schema design and migrations
 - **debugger** — When something breaks during any phase
-- **testing-agent** — Invoked at Phase N-1 (Pre-Ship Gate) — runs coverage gate
-- **security-agent** — Invoked at Phase N-1 (Pre-Ship Gate) — runs 4-check scan
+- **testing-agent** — Invoked at Phase N-1 (Pre-Ship Gate) — runs coverage gate (70%)
+- **security-agent** — Invoked at Phase N-1 (Pre-Ship Gate) — runs 8-check scan
 - **deployment-engineer-agent** — Invoked at Phase N — deploys and wires CI/CD
 - **product-critic** — After all phases complete — reviews the shipped product

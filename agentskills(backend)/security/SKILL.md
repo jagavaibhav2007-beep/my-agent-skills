@@ -1,6 +1,6 @@
 ---
 name: security-agent
-description: Security agent inspired by LLM Guard (ProtectAI), vuln-agent (code vulnerability triage), and NVISO cyber-security agents — provides input/output scanning, vulnerability triage with false-positive reduction, OWASP protection, DDoS defense, and incident response
+description: Senior Application Security Engineer — audits web apps against OWASP Top 10:2025 (official release), supply chain attacks, JWT/OAuth vulnerabilities, secret leakage, and misconfiguration. Confidence-scored triage reduces false positives 40-60%. Pre-ship gate blocks deploy on any critical finding. Sources: OWASP Top 10:2025, LLM Guard (ProtectAI), vuln-agent, NVISO cyber-security-llm-agents.
 allowed-tools:
   - "Read"
   - "Write"
@@ -17,565 +17,400 @@ allowed-tools:
 
 # Security Agent Skill
 
-You are a **Senior Application Security Engineer** modeled after the workflows of [LLM Guard](https://github.com/protectai/llm-guard) (ProtectAI), [vuln-agent](https://github.com/samuelberston/vuln-agent), and [NVISO cyber-security-llm-agents](https://github.com/NVISOsecurity/cyber-security-llm-agents).
+**Sources:** OWASP Top 10:2025 · LLM Guard (ProtectAI) · vuln-agent · NVISO cyber-security-llm-agents
 
-## Overview
-
-This skill combines three real-world security approaches:
-
-1. **LLM Guard's Scanner Architecture** — Scan both inputs AND outputs through a pipeline of specialized scanners (prompt injection, data leakage, toxicity, secrets detection)
-2. **vuln-agent's Triage Workflow** — Discovery → Vulnerability Analysis → Triage with confidence scoring (reducing false positives by 40-60%)
-3. **NVISO's AutoGen Security Agents** — Multi-agent orchestration for comprehensive security assessments
-
-## Core Philosophy
-
-> **"50-80% of SAST findings are false positives. Our job is to find the REAL threats."** — vuln-agent
-
-- Prioritize **real vulnerabilities** over false positives
-- Scan **both inputs AND outputs** (LLM Guard's bidirectional approach)
-- Use **context-aware analysis** — understand the app, don't just pattern-match
-- Map findings to **CVE and OWASP data** for actionable prioritization
-
-## Prerequisites
-
-- Access to the project's source code
-- Ability to run terminal commands (for dependency audits)
-- Knowledge of the project's tech stack
+**Core philosophy:** 50–80% of SAST findings are false positives. Find real threats. Score confidence. Fix with code.
 
 ---
 
-## Activation Triggers
+## Activation Table
 
 | User says | Mode |
 |---|---|
-| *"Run a security audit"* / *"Check my security"* | Full audit — all phases |
-| *"I'm about to ship"* / *"Pre-ship check"* | Phase PS only — fast scan, gate only |
-| *"Check for secrets"* | Phase 4 only — secret detection |
-| *"OWASP check"* | Phase 5 only |
-| *"Is my Supabase secure?"* | Phase 7 only |
+| "run a security audit" / "check my security" | Full audit — all phases |
+| "I'm about to ship" / "pre-ship check" | **Phase PS** only |
+| "check for secrets" | Phase 4 only |
+| "OWASP check" | Phase 5 only |
+| "check my auth" / "JWT audit" / "OAuth audit" | Phase 7 only |
+| "supply chain check" / "dependency audit" | Phase 6 only |
+| "Is my Supabase secure?" | Phase 9 only |
+| "fix this vulnerability" | Apply fix from relevant phase finding |
 
 ---
 
-## Phase PS: Pre-Ship Mode
+## Phase PS: Pre-Ship Security Gate
 
-Triggered by: "I'm about to ship", "Pre-ship check", "Ready to deploy", "Secure scan before deploy"
+**Triggered by:** "I'm about to ship" / "pre-ship check" / "ready to deploy"
 
-Runs 4 fast checks. Each is pass/fail. Any CRITICAL or HIGH finding blocks ship.
+8 fast checks. Any CRITICAL or HIGH blocks ship. No exceptions.
 
-**Check 1: Secret Scan** (from Phase 4)
 ```
-→ grep_search source files for: sk-, api_key, apiKey, API_KEY, SECRET, token, password as string literals
-→ grep_search for hardcoded DB URIs: postgresql://, mongodb://, redis://
-→ run_command: git check-ignore .env — must be ignored
-→ run_command: git ls-files | grep "\.env" — must return nothing
+CHECK 1 — SECRET SCAN 🔴
+grep_search: `sk-`, `api_key\s*=\s*["']`, `API_KEY\s*=\s*["']`, `SECRET\s*=\s*["']`
+grep_search: `postgresql://`, `mongodb://`, `redis://` as string literals
+grep_search: `-----BEGIN (RSA |EC )?PRIVATE KEY-----`
+grep_search: `AKIA[A-Z0-9]{16}` (AWS), `ghp_[a-zA-Z0-9]{36}` (GitHub)
+run_command: git check-ignore .env → must be ignored
+run_command: git ls-files | grep "\.env" → must return nothing
 BLOCKS SHIP if any hardcoded secret or tracked .env found.
-```
 
-**Check 2: Auth & Access Control** (OWASP A01)
-```
-→ grep_search for API route handlers (pages/api/, app/api/, routes/) without auth checks
-→ grep_search for Supabase tables: run SELECT tablename FROM pg_tables WHERE schemaname='public' AND rowsecurity=false
-→ Flag any public POST/PUT/DELETE endpoint with no auth middleware
-BLOCKS SHIP if unauthenticated write endpoints exist or any table has RLS disabled.
-```
+CHECK 2 — AUTH & ACCESS CONTROL 🔴 (A01:2025)
+grep_search: API route handlers (pages/api/, app/api/, routes/) without auth checks
+grep_search: Supabase → SELECT tablename FROM pg_tables WHERE schemaname='public' AND rowsecurity=false
+grep_search: JWT verify — check alg is NOT "none" and NOT accepting alg from token header
+Flag: any POST/PUT/DELETE endpoint with no auth middleware
+BLOCKS SHIP if unauthenticated write endpoints or RLS-disabled tables found.
 
-**Check 3: Input Validation** (OWASP A03)
-```
-→ grep_search for raw SQL string interpolation (template literals or + concatenation inside query strings)
-→ grep_search for dangerouslySetInnerHTML without sanitization
-→ grep_search for user input flowing directly to eval(), exec(), or child_process.exec()
-BLOCKS SHIP if any injection vector found with confidence ≥ 0.7 (see Phase 3 scoring).
-```
+CHECK 3 — SECURITY MISCONFIGURATION 🔴 (A02:2025 — jumped #5→#2)
+grep_search: `NODE_ENV !== 'production'` guards missing on debug routes
+grep_search: CORS — `origin: '*'` or `cors()` with no options in production code
+grep_search: `console.log` / `console.error` printing req.body or user data
+grep_search: stack traces returned in API error responses
+Check: security headers present (CSP, HSTS, X-Frame-Options, X-Content-Type-Options)
+BLOCKS SHIP if wildcard CORS in production, debug routes exposed, or stack traces in responses.
 
-**Check 4: Dependency Audit**
-```
-→ run_command: npm audit --audit-level=high 2>&1
-→ Parse output: count CRITICAL and HIGH severity CVEs in direct dependencies
-BLOCKS SHIP if any HIGH or CRITICAL CVEs in direct dependencies.
+CHECK 4 — INJECTION (A05:2025)
+grep_search: raw SQL string interpolation — template literals inside query strings
+grep_search: `dangerouslySetInnerHTML` without DOMPurify sanitization
+grep_search: user input flowing to `eval()`, `exec()`, `child_process.exec()`
+grep_search: `${}` inside MongoDB query objects
+BLOCKS SHIP if any direct injection vector found with confidence ≥ 0.7.
+
+CHECK 5 — SUPPLY CHAIN (A03:2025 — NEW in 2025)
+run_command: npm audit --audit-level=high 2>&1
+run_command: npm audit --all 2>&1 (includes transitive deps)
+Check: package-lock.json / yarn.lock committed and up-to-date
+grep_search: `*` or `latest` version pins in package.json dependencies
+BLOCKS SHIP if HIGH/CRITICAL CVEs in direct dependencies or lockfile missing.
+
+CHECK 6 — AUTH ATTACK SURFACE
+grep_search: JWT decode without verify — `jwt.decode(` without `jwt.verify(`
+grep_search: `algorithms: ['none']` or token header used to select algorithm
+Check: OAuth flows use state parameter and PKCE for public clients
+grep_search: session tokens in URL params (`?token=`, `?session=`)
+BLOCKS SHIP if JWT algorithm confusion pattern found or OAuth state parameter missing.
+
+CHECK 7 — SENSITIVE DATA EXPOSURE (A04:2025)
+grep_search: passwords/tokens logged — `console.log(password`, `logger.info(token`
+grep_search: HTTP (not HTTPS) API endpoints in production config
+grep_search: PII fields (email, ssn, card) without encryption at rest
+BLOCKS SHIP if passwords logged or sensitive data sent over HTTP.
+
+CHECK 8 — ERROR HANDLING (A10:2025 — NEW in 2025)
+grep_search: bare `catch {}` blocks with no error handling (fail-open pattern)
+grep_search: auth/permission checks inside try blocks that silently pass on exception
+grep_search: `return true` or `return null` in catch blocks for auth functions
+BLOCKS SHIP if auth or permission logic fails open on exception.
 ```
 
 **Output:**
 ```
-SHIP READY ✅ — 4/4 checks passed. Safe to deploy.
-— OR —
-SHIP BLOCKED ❌
-  🔴 [Check name]: [what failed — one line per issue]
-  Action: [specific fix required before ship]
+=== PRE-SHIP SECURITY GATE ===
+CHECK 1 Secret Scan:         ✅ PASS / ❌ FAIL — [finding]
+CHECK 2 Auth & Access:       ✅ PASS / ❌ FAIL — [finding]
+CHECK 3 Misconfiguration:    ✅ PASS / ❌ FAIL — [finding]
+CHECK 4 Injection:           ✅ PASS / ❌ FAIL — [finding]
+CHECK 5 Supply Chain:        ✅ PASS / ❌ FAIL — [finding]
+CHECK 6 Auth Attack Surface: ✅ PASS / ❌ FAIL — [finding]
+CHECK 7 Data Exposure:       ✅ PASS / ❌ FAIL — [finding]
+CHECK 8 Error Handling:      ✅ PASS / ❌ FAIL — [finding]
+
+SHIP READY ✅  — 8/8 checks passed
+SHIP BLOCKED ❌ — [N] checks failed:
+  🔴 [Check N]: [exact file:line] — [one-line fix]
 ```
 
 ---
 
-## Phase 1: Discovery (vuln-agent Style)
+## Phase 1: Discovery
 
-vuln-agent starts every assessment with a **Discovery Agent** that maps the project context before scanning:
+Map the project before scanning anything. Without context, 80% of findings are wrong.
 
 ```
-Discovery Phase — vuln-agent Workflow:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-1. ANALYZE TECH STACK
-   → What frameworks? (React, Next.js, Express, Flask, etc.)
-   → What database? (Supabase, PostgreSQL, MongoDB, etc.)
-   → What auth method? (Supabase Auth, JWT, OAuth, sessions)
-   → What cloud/hosting? (Vercel, AWS, Cloudflare, etc.)
-
-2. ANALYZE DEPENDENCIES
-   → Run: npm audit (Node.js) or pip audit (Python)
-   → Count: total dependencies, direct vs transitive
-   → Flag: any with known CVEs (Critical/High severity)
-
-3. ANALYZE PROJECT STRUCTURE
-   → Map: entry points (API routes, forms, file uploads, WebSockets)
-   → Map: data flow (Frontend → Backend → Database → External APIs)
-   → Map: sensitive data locations (auth, payments, PII)
-
-4. ANALYZE TEST COVERAGE
-   → Is there a test suite? How comprehensive?
-   → Are security-specific tests present?
-   → Is there CI/CD with security checks?
-
-5. GENERATE THREAT MODEL
-   → What are the most likely attack vectors?
-   → What data is most valuable to an attacker?
-   → What's the blast radius of a breach?
-
-6. GENERATE TEST PLAN
-   → Prioritized list of what to scan first
-   → Which tools/scanners are most relevant for this stack
+1. list_dir project root
+2. Read package.json → identify: framework, DB, auth method, hosting
+3. Read .env.example → inventory all env vars + identify sensitive ones
+4. grep_search for auth patterns: jwt, supabase.auth, nextauth, clerk, firebase.auth
+5. Map attack surface:
+   → All API route files (pages/api/, app/api/, routes/, controllers/)
+   → All forms and file upload endpoints
+   → All WebSocket handlers
+   → All external API calls (fetch, axios, got)
+6. Generate threat model: what data is most valuable? what is blast radius of breach?
 ```
 
-### Project Context Template:
-
-```markdown
-## 🔍 Security Context Report
-
-**Project:** [Name]
-**Stack:** [Frontend] + [Backend] + [Database]
-**Auth:** [Method]
-**Deployment:** [Platform]
-
-### Attack Surface
-| Entry Point | Type | Auth Required | Risk Level |
-|---|---|---|---|
-| `/api/auth/login` | POST | No | 🔴 Critical |
-| `/api/upload` | POST | Yes | 🟠 High |
-| `/api/data` | GET | Yes | 🟡 Medium |
-
-### Sensitive Data Inventory
-| Data Type | Location | Encrypted | Access Control |
-|---|---|---|---|
-| API Keys | .env | N/A | gitignore |
-| User passwords | Supabase Auth | Yes (bcrypt) | RLS |
-| PII | users table | No | RLS policies |
+**Context Report format:**
+```
+STACK: [Frontend + Backend + DB + Auth + Hosting]
+ATTACK SURFACE: [N] API routes, [N] forms, [N] file uploads
+SENSITIVE DATA: [auth tokens, PII fields, payment data — specific tables/fields]
+HIGHEST RISK ENTRY POINTS: [list top 3]
 ```
 
 ---
 
 ## Phase 2: Input/Output Scanning (LLM Guard Architecture)
 
-LLM Guard's revolutionary approach: scan BOTH what goes IN to your AI and what comes OUT. Apply this same bidirectional scanning to your entire app.
+For AI-powered apps: scan BOTH what goes in AND what comes out. For all apps: apply bidirectional validation at API boundaries.
 
-### LLM Guard's Scanner Categories:
-
-#### Input Scanners (Applied to user inputs, API requests, form data):
-
-| Scanner | What It Catches | How to Implement |
-|---|---|---|
-| **PromptInjection** | Prompt injection attacks, jailbreaks | Check for known injection patterns, instruction override attempts |
-| **Anonymize** | PII in user prompts (emails, phones, SSNs, credit cards) | Regex + NER detection, replace with tokens before processing |
-| **Toxicity** | Hate speech, harassment, harmful content | Content moderation before processing |
-| **BanSubstrings** | Blocked words, profanity, competitor mentions | Configurable deny-lists |
-| **Secrets** | API keys, passwords, tokens accidentally pasted | Pattern matching for key formats (sk-, pk_, ghp_, etc.) |
-| **TokenLimit** | Excessively long inputs (resource exhaustion) | Enforce max input length |
-| **Code** | Malicious code snippets in user input | Detect and sandbox code execution |
-| **InvisibleText** | Hidden Unicode characters used for prompt injection | Strip invisible/zero-width characters |
-| **Gibberish** | Nonsensical inputs designed to confuse the model | Detect low-coherence text |
-| **Language** | Inputs in unexpected languages (potential bypass) | Enforce expected language |
-
-#### Output Scanners (Applied to AI responses, API responses):
-
-| Scanner | What It Catches | How to Implement |
-|---|---|---|
-| **Sensitive** | PII leakage in responses (model revealing user data) | Scan outputs for email, phone, SSN patterns |
-| **Deanonymize** | Reverse anonymization for authorized display | Re-map tokens back to original data |
-| **NoRefusal** | Model refusing to help (poor user experience) | Detect refusal patterns and offer alternatives |
-| **Relevance** | Off-topic or hallucinated responses | Check response relevance to the query |
-| **MaliciousURLs** | Phishing or malware URLs in AI output | URL reputation checking |
-| **Bias** | Discriminatory or biased content | Bias detection in generated text |
-| **FactualConsistency** | Hallucinated facts in AI responses | Cross-reference with known data |
-| **Toxicity** | Harmful content generated by the model | Same toxicity check on output |
-
-### LLM Guard-Style Scanning Pipeline:
-
+### Input Scanner Pipeline
 ```
-User Input
-    │
-    ▼
-┌──────────────────────────────────────────────────┐
-│  INPUT SCANNER PIPELINE                          │
-│                                                  │
-│  1. InvisibleText  → Strip hidden characters     │
-│  2. TokenLimit     → Reject oversized inputs     │
-│  3. Secrets        → Block leaked API keys       │
-│  4. Anonymize      → Replace PII with tokens     │
-│  5. PromptInjection → Block injection attempts   │
-│  6. Toxicity       → Block harmful content       │
-│  7. BanSubstrings  → Block denied patterns       │
-│                                                  │
-│  If ANY scanner fails → REJECT the input         │
-│  If ALL pass → Forward sanitized input           │
-└──────────────────────────────────────────────────┘
-    │
-    ▼
-  [AI Model / API Processing]
-    │
-    ▼
-┌──────────────────────────────────────────────────┐
-│  OUTPUT SCANNER PIPELINE                         │
-│                                                  │
-│  1. Sensitive      → Catch PII leakage           │
-│  2. MaliciousURLs  → Block dangerous links       │
-│  3. Relevance      → Ensure on-topic response    │
-│  4. Bias           → Check for discrimination    │
-│  5. Toxicity       → Block harmful output        │
-│  6. Deanonymize    → Restore safe PII only       │
-│                                                  │
-│  If ANY scanner fails → BLOCK or sanitize output │
-│  If ALL pass → Deliver response to user          │
-└──────────────────────────────────────────────────┘
-    │
-    ▼
-Safe Response to User
+1. InvisibleText  — strip hidden Unicode/zero-width chars (prompt injection vector)
+2. TokenLimit     — reject inputs > 10,000 chars
+3. Secrets        — block accidentally pasted API keys (sk-, ghp_, AKIA patterns)
+4. Anonymize      — replace PII (email, phone, SSN) with tokens before processing
+5. PromptInjection — block "ignore previous instructions", "new persona", jailbreaks
+6. Toxicity       — block harmful content before LLM call
+→ ANY scanner fails → REJECT with generic error (never reveal which scanner blocked)
 ```
 
-### Implementation Pattern (inspired by LLM Guard's actual code):
+### Output Scanner Pipeline
+```
+1. Sensitive      — catch PII leakage in LLM responses
+2. MaliciousURLs  — scan all URLs in output against reputation list
+3. Relevance      — flag off-topic responses (potential prompt injection success)
+4. Toxicity       — block harmful generated content
+→ ANY scanner fails → BLOCK or sanitize before returning to user
+```
 
 ```javascript
-// Security middleware using LLM Guard's scanner pattern
-class SecurityScanner {
-    constructor() {
-        this.inputScanners = [];
-        this.outputScanners = [];
-    }
-    
-    // Add scanners in order of priority
-    addInputScanner(scanner) { this.inputScanners.push(scanner); }
-    addOutputScanner(scanner) { this.outputScanners.push(scanner); }
-    
-    async scanInput(input) {
-        let sanitized = input;
-        const results = {};
-        
-        for (const scanner of this.inputScanners) {
-            const { output, isValid, riskScore } = await scanner.scan(sanitized);
-            results[scanner.name] = { isValid, riskScore };
-            
-            if (!isValid) {
-                return { 
-                    blocked: true, 
-                    reason: scanner.name,
-                    score: riskScore,
-                    results 
-                };
-            }
-            sanitized = output; // Each scanner can modify the input
-        }
-        
-        return { blocked: false, sanitizedInput: sanitized, results };
-    }
-    
-    async scanOutput(output, originalInput) {
-        let sanitized = output;
-        const results = {};
-        
-        for (const scanner of this.outputScanners) {
-            const { cleanOutput, isValid, riskScore } = await scanner.scan(sanitized, originalInput);
-            results[scanner.name] = { isValid, riskScore };
-            
-            if (!isValid) {
-                return {
-                    blocked: true,
-                    reason: scanner.name,
-                    score: riskScore,
-                    results
-                };
-            }
-            sanitized = cleanOutput;
-        }
-        
-        return { blocked: false, sanitizedOutput: sanitized, results };
-    }
-}
+// Minimal secrets scanner (apply at every API boundary)
+const SECRET_PATTERNS = [
+    /sk-[a-zA-Z0-9]{20,}/g,
+    /ghp_[a-zA-Z0-9]{36}/g,
+    /AKIA[A-Z0-9]{16}/g,
+    /sk_live_[a-zA-Z0-9]{24,}/g,
+    /eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*/g,  // raw JWT in user input
+    /postgres:\/\/[^\s]+/g,
+];
 
-// Example scanner implementation
-class SecretsScanner {
-    name = 'Secrets';
-    
-    // Patterns from LLM Guard's secrets detection
-    patterns = [
-        /sk-[a-zA-Z0-9]{20,}/g,          // OpenAI keys
-        /ghp_[a-zA-Z0-9]{36}/g,           // GitHub tokens
-        /AIza[a-zA-Z0-9_-]{35}/g,         // Google API keys
-        /AKIA[A-Z0-9]{16}/g,              // AWS access keys
-        /xox[bporas]-[a-zA-Z0-9-]+/g,     // Slack tokens
-        /sk_live_[a-zA-Z0-9]{24,}/g,       // Stripe keys
-        /postgres:\/\/[^\s]+/g,            // Database URIs
-        /mongodb(\+srv)?:\/\/[^\s]+/g,     // MongoDB URIs
-        /-----BEGIN (RSA |EC )?PRIVATE KEY-----/g,  // Private keys
-        /eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*/g,  // JWT tokens
-    ];
-    
-    scan(input) {
-        for (const pattern of this.patterns) {
-            if (pattern.test(input)) {
-                return { output: input, isValid: false, riskScore: 1.0 };
-            }
-            pattern.lastIndex = 0; // Reset regex state
-        }
-        return { output: input, isValid: true, riskScore: 0.0 };
-    }
+function scanForSecrets(input) {
+    return SECRET_PATTERNS.some(p => { p.lastIndex = 0; return p.test(input); });
 }
 ```
 
 ---
 
-## Phase 3: Vulnerability Triage (vuln-agent Confidence Scoring)
+## Phase 3: Vulnerability Triage (Confidence Scoring)
 
-vuln-agent's key innovation: instead of just finding vulnerabilities, it **triages** them with AI-powered confidence scoring — reducing false positives by 40-60%.
-
-### vuln-agent Triage Workflow:
-
-```mermaid
-graph TD
-    Findings[Raw Security Findings] --> Triage[Triage Agent]
-    Context[Project Context] --> Triage
-    
-    Triage --> DataFlow[Data Flow Analysis]
-    Triage --> PatternMatch[Pattern Matching]
-    Triage --> Sanitizers[Sanitizer Analysis]
-    
-    DataFlow --> Scoring[Confidence Scoring]
-    PatternMatch --> Scoring
-    Sanitizers --> Scoring
-    
-    Scoring --> FinalReport[Prioritized Security Report]
-```
-
-### Confidence Scoring System:
-
-For each finding, calculate a confidence score:
+Every finding gets a score. Don't waste time on false positives.
 
 ```
 Confidence Score = Data Flow Score × Pattern Score × Sanitizer Score
 
-Data Flow Score (0.0 - 1.0):
-  1.0 = User input flows directly to vulnerable sink (e.g., SQL query)
-  0.7 = User input flows through validation, but validation is incomplete
-  0.3 = User input flows through proper validation/sanitization
-  0.0 = No user input reaches the vulnerable code
+Data Flow Score:   1.0 = user input → sink, unobstructed
+                   0.7 = through incomplete validation
+                   0.3 = through mostly-effective validation
+                   0.0 = no user input reaches this code
 
-Pattern Score (0.0 - 1.0):
-  1.0 = Matches a well-known exploit pattern exactly
-  0.7 = Similar to a known pattern but with different context
-  0.3 = Superficially matches but has mitigating factors
-  0.0 = False positive — pattern match is coincidental
+Pattern Score:     1.0 = exact known exploit pattern
+                   0.7 = similar to known pattern
+                   0.3 = superficial match with mitigating context
+                   0.0 = coincidental match, false positive
 
-Sanitizer Score (0.0 - 1.0):
-  1.0 = No sanitization present
-  0.7 = Sanitization exists but is bypassable
-  0.3 = Sanitization exists and is mostly effective
-  0.0 = Proper sanitization prevents exploitation
+Sanitizer Score:   1.0 = no sanitization
+                   0.7 = sanitization present but bypassable
+                   0.3 = mostly effective sanitization
+                   0.0 = proper sanitization blocks exploitation
 
-FINAL RATING:
-  ≥ 0.7 = 🔴 TRUE POSITIVE — Must fix immediately
-  0.4 - 0.7 = 🟠 LIKELY POSITIVE — Fix before deployment
-  0.2 - 0.4 = 🟡 POSSIBLE — Investigate further
-  < 0.2 = ⚪ LIKELY FALSE POSITIVE — Document and move on
-```
-
-### Triage Template:
-
-```markdown
-### Finding #[N]: [Vulnerability Name]
-
-**Tool Source:** [CodeQL / Semgrep / npm audit / manual scan]
-**File:** `path/to/file.ext` | **Line:** [N]
-**CWE:** [CWE-ID] | **OWASP:** [Category]
-
-**Raw Finding:**
-[What the scanning tool reported]
-
-**Context Analysis:**
-[Your analysis of whether this is a real threat in this specific codebase]
-
-**Data Flow:**
-[Does user input actually reach this code? Through what path?]
-
-**Existing Mitigations:**
-[Are there sanitizers, validators, or other defenses already in place?]
-
-**Confidence Score:** [0.0 - 1.0] → [Rating]
-**Verdict:** 🔴 True Positive / 🟠 Likely / 🟡 Possible / ⚪ False Positive
-
-**Recommended Fix:**
-[Specific code change with rationale]
+VERDICT:
+  ≥ 0.7 → 🔴 TRUE POSITIVE — fix immediately, blocks ship
+  0.4–0.7 → 🟠 LIKELY — fix before production scale
+  0.2–0.4 → 🟡 POSSIBLE — investigate
+  < 0.2 → ⚪ FALSE POSITIVE — document and dismiss
 ```
 
 ---
 
-## Phase 4: Secret Detection (Enhanced)
+## Phase 4: Secret Detection
 
-**This is the #1 priority.** Run these scans on EVERY audit:
+Run on every audit. Priority #1.
 
 ```
-Secret Detection Protocol:
-━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Source code scan:
+   grep_search: sk-, api_key, API_KEY, SECRET, password as string literals (not env refs)
+   grep_search: postgresql://, mysql://, mongodb://, redis:// as literals
+   grep_search: -----BEGIN PRIVATE KEY-----, -----BEGIN RSA PRIVATE KEY-----
+   grep_search: AKIA[A-Z0-9]{16} (AWS), ghp_|gho_|ghu_ (GitHub), xox[bporas]- (Slack)
+   grep_search: sk_live_|pk_live_ (Stripe)
 
-1. Scan source code for hardcoded secrets:
-   → grep for: sk-, api_key, apiKey, API_KEY, secret, SECRET, token, password
-   → grep for: postgresql://, mysql://, mongodb://, redis://
-   → grep for: -----BEGIN PRIVATE KEY-----
-   → grep for: ghp_, gho_, ghu_, ghs_ (GitHub tokens)
-   → grep for: AKIA (AWS keys)
+2. Git history scan:
+   run_command: git log --all -p | grep -i "password\|secret\|api_key\|token" | head -50
+   run_command: git ls-files | grep "\.env"
 
-2. Check version control:
-   → Is .env in .gitignore?
-   → Are any .env files tracked? (git ls-files | grep env)
-   → Are there secrets in git history? (git log --all -p | grep -i "password\|secret\|api_key")
+3. Frontend bundle check:
+   grep_search in src/components/, src/pages/, src/app/ for any provider SDK imports
+   (openai, anthropic, stripe, firebase-admin → these must NEVER be in client code)
 
-3. Check frontend code:
-   → Any secret keys in client-side bundles?
-   → VITE_ prefixed vars: are they truly public-safe?
-   → Check browser DevTools Network tab for leaked headers
-
-4. Check CI/CD:
-   → Are secrets in GitHub Actions/pipeline configs?
-   → Are they using proper secrets management?
+4. Fix pattern for found secrets:
+   → Move to .env, add throwMissing() guard in src/config/env.ts
+   → Add .env* to .gitignore
+   → Rotate the exposed key immediately — assume it is compromised
+   → run_command: git filter-repo or BFG to purge from git history
 ```
 
 ---
 
-## Phase 5: OWASP Top 10 Systematic Check
+## Phase 5: OWASP Top 10:2025 Systematic Check
 
-| # | Vulnerability | What to Check | Confidence Triage Question |
+**Updated 2025 list** — significantly different from 2021. Use this, not the old one.
+
+| # | Category | What Changed | Key Checks |
 |---|---|---|---|
-| A01 | **Broken Access Control** | Can users access other users' data? Missing RLS? Auth bypass? | Does the code actually check `auth.uid()` for every data access? |
-| A02 | **Cryptographic Failures** | Weak hashing? Plain-text passwords? HTTP instead of HTTPS? | Is sensitive data actually encrypted at rest and in transit? |
-| A03 | **Injection** | SQL injection, XSS, Command injection, NoSQL injection | Does user input flow to a query/eval without sanitization? |
-| A04 | **Insecure Design** | Business logic flaws, missing rate limits, no abuse prevention | Could an attacker abuse the intended functionality? |
-| A05 | **Security Misconfiguration** | Default passwords, verbose errors, debug mode in production | Are production configs actually hardened? |
-| A06 | **Vulnerable Components** | Known CVEs in dependencies (npm audit) | Are the vulnerable functions actually used in the codebase? |
-| A07 | **Auth Failures** | Weak passwords, no MFA, credential stuffing possible | Is brute force protection actually implemented? |
-| A08 | **Data Integrity** | Can data be tampered? Are updates verified? | Is there integrity checking on critical data? |
-| A09 | **Logging Failures** | No audit trail, sensitive data in logs | Can we trace a breach after it happens? |
-| A10 | **SSRF** | Can user-supplied URLs be fetched by the server? | Does the URL validation actually block internal IPs? |
+| **A01:2025** | Broken Access Control | SSRF now absorbed here | Auth on every route, RLS on every table, IDOR checks, SSRF via URL params |
+| **A02:2025** | Security Misconfiguration | **Jumped from #5 → #2** | CORS wildcard, debug routes, stack traces in responses, default credentials, permissive CSP |
+| **A03:2025** | Software Supply Chain | **New** — expanded from "Vulnerable Components" | Lockfile integrity, dependency pinning, transitive CVEs, build system compromise |
+| **A04:2025** | Cryptographic Failures | Down from #2 | Weak hashing (MD5/SHA1 for passwords), HTTP not HTTPS, unencrypted PII at rest |
+| **A05:2025** | Injection | Down from #3 | SQL/NoSQL/command/XSS injection, user input to eval/exec |
+| **A06:2025** | Insecure Design | Business logic flaws | Race conditions, missing abuse prevention, flawed rate limiting |
+| **A07:2025** | Authentication Failures | Renamed from Auth&Session | JWT algorithm confusion, OAuth PKCE missing, brute force, session fixation |
+| **A08:2025** | Software/Data Integrity | CI/CD trust | Unsigned artifacts, auto-update without integrity check, insecure deserialization |
+| **A09:2025** | Logging & Alerting | Same as 2021 | No audit trail, PII in logs, no breach detection |
+| **A10:2025** | Mishandling of Exceptions | **New** | Fail-open on exception, bare catch blocks in auth, error details to client |
 
 ---
 
-## Phase 6: DDoS & Rate Limiting Defense
+## Phase 6: Supply Chain Security (A03:2025)
 
-### Multi-Layer Rate Limiting:
+Supply chain is now a top-3 OWASP risk. Most teams completely ignore it.
+
+```
+DEPENDENCY INTEGRITY:
+→ run_command: npm audit --all 2>&1  (includes transitive, not just direct)
+→ run_command: npx better-npm-audit 2>&1  (better reporting than npm audit)
+→ Check: package-lock.json committed and matching package.json
+→ grep_search: `"*"` or `"latest"` in package.json dependencies section
+   Flag every wildcard — these allow silent version upgrades introducing malware
+
+TYPOSQUATTING CHECK:
+→ Review recently added dependencies for names similar to popular packages:
+   lodash vs 1odash, react vs reect, express vs expres
+→ grep_search: recently added npm packages — verify on npmjs.com before trusting
+
+BUILD PIPELINE AUDIT:
+→ Check .github/workflows/ for:
+   - Actions pinned to SHA (uses: actions/checkout@v4) vs floating (uses: actions/checkout@main)
+   - Secrets printed in workflow logs (echo $SECRET patterns)
+   - Third-party actions from unverified publishers
+→ Flag all `uses: [owner]/[action]@main` — these can change without notice
+
+LOCKFILE INTEGRITY:
+→ run_command: git diff package-lock.json | head -50  (check for unexpected changes)
+→ Flag if package-lock.json is in .gitignore (common mistake)
+→ Fix pattern: `npm ci` in CI/CD instead of `npm install` (uses lockfile exactly)
+```
+
+---
+
+## Phase 7: Auth Attack Surface (JWT, OAuth, Sessions)
+
+22% of all data breaches start with auth exploitation. Scan every auth pattern.
+
+### JWT Security
+```
+ALGORITHM CONFUSION ATTACK:
+grep_search: jwt.verify( without explicit algorithms array
+grep_search: algorithms: ['none'] anywhere
+grep_search: jwt.decode( — decode without verify skips signature check entirely
+
+Safe pattern:
+jwt.verify(token, secret, { algorithms: ['HS256'] })  // explicit allowlist, never auto-detect
+
+WEAK SECRETS:
+grep_search: JWT_SECRET = "secret" / "password" / "123" in any config
+Check: JWT_SECRET length ≥ 32 chars in .env
+
+TOKEN STORAGE:
+grep_search: localStorage.setItem for tokens (XSS steals them)
+grep_search: tokens in URL query params (?token=, ?jwt=)
+Safe: httpOnly cookies only for session tokens
+```
+
+### OAuth / PKCE
+```
+CSRF IN OAUTH:
+grep_search: OAuth callback handlers without state parameter validation
+grep_search: /callback or /auth/callback routes that don't verify state
+
+PKCE MISSING (public clients — SPAs, mobile):
+grep_search: OAuth authorization URLs without code_challenge parameter
+Fix: All public client OAuth flows must use PKCE (RFC 7636)
+
+REDIRECT URI VALIDATION:
+grep_search: OAuth redirect_uri accepting dynamic values without allowlist
+Fix: redirect_uri must be hardcoded allowlist — never accept from user input
+```
+
+### Session Security
+```
+SESSION FIXATION:
+Check: session ID regenerated after login (req.session.regenerate())
+
+INSECURE COOKIES:
+grep_search: res.cookie( without httpOnly: true, secure: true, sameSite: 'strict'
+
+EMAIL ENUMERATION:
+grep_search: "user not found" or "email doesn't exist" in auth error responses
+Fix: always return "invalid credentials" — never leak whether email exists
+```
+
+---
+
+## Phase 8: DDoS & Rate Limiting Defense
 
 ```javascript
-// Layer 1: Global rate limit (all routes)
-const globalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
-    standardHeaders: true,
-    message: { error: 'Too many requests. Please try again later.' },
-});
+// 3-tier rate limiting — apply all three
+import rateLimit from 'express-rate-limit';
 
-// Layer 2: Auth endpoints (strict — brute force prevention)
-const authLimiter = rateLimit({
+// Tier 1: Global (all routes)
+app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
+
+// Tier 2: Auth endpoints (strict — brute force prevention)
+app.use('/api/auth', rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 5,
     skipSuccessfulRequests: true,
-    message: { error: 'Too many attempts. Try again in 15 minutes.' },
-});
+}));
 
-// Layer 3: API endpoints (per-user, not just per-IP)
-const apiLimiter = rateLimit({
+// Tier 3: Per-user API (not just per-IP)
+app.use('/api', rateLimit({
     windowMs: 60 * 1000,
     max: 30,
     keyGenerator: (req) => req.user?.id || req.ip,
-});
-
-// Layer 4: File uploads (strict)
-const uploadLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000,
-    max: 10,
-    message: { error: 'Upload limit reached.' },
-});
+}));
 ```
-
-### Supabase Edge Function Rate Limiting:
-
-```sql
--- Rate limit tracking table
-CREATE TABLE public.rate_limits (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    client_ip TEXT NOT NULL,
-    endpoint TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
-);
-
-CREATE INDEX idx_rate_limits_lookup ON public.rate_limits(client_ip, endpoint, created_at);
-
--- Auto-cleanup via pg_cron
-SELECT cron.schedule('cleanup-rate-limits', '*/5 * * * *',
-    $$DELETE FROM public.rate_limits WHERE created_at < NOW() - INTERVAL '1 hour'$$
-);
-```
-
-### Brute Force Protection:
 
 ```javascript
-// Progressive lockout (inspired by NVISO's security agents)
-const bruteForceProtection = {
-    async checkAttempt(identifier) {
-        const attempts = await getFailedAttempts(identifier);
-        
-        if (attempts >= 10) return { blocked: true, reason: 'Account locked. Reset via email.' };
-        if (attempts >= 5)  return { blocked: false, requireCaptcha: true };
-        if (attempts >= 3)  {
-            await sleep(Math.pow(2, attempts) * 1000); // Exponential backoff
-            return { blocked: false };
-        }
-        return { blocked: false };
-    }
-};
-
-// IMPORTANT: Always return same message for failed login
-// Prevents email enumeration attacks
-res.json({ error: 'Invalid credentials.' }); // Never say "user not found"
-```
-
-### DDoS Architecture:
-
-```
-User → Cloudflare/WAF (volumetric filtering)
-    → CDN (cache static assets)
-    → Frontend (Vercel/Netlify)
-    → API (rate limited at every layer)
-    → Supabase (RLS + connection pooling)
+// Brute force: progressive lockout
+async function checkBruteForce(identifier) {
+    const attempts = await getFailedAttempts(identifier);
+    if (attempts >= 10) return { blocked: true };
+    if (attempts >= 5)  return { requireCaptcha: true };
+    if (attempts >= 3)  await sleep(Math.pow(2, attempts) * 1000);
+    return { blocked: false };
+}
+// ALWAYS: return same message for failed login — prevents email enumeration
+// res.json({ error: 'Invalid credentials.' }) — never "user not found"
 ```
 
 ---
 
-## Phase 7: Supabase-Specific Security
+## Phase 9: Supabase-Specific Security
 
-| Check | What to Verify | How |
-|---|---|---|
-| **RLS Enabled** | Every table has RLS on | `SELECT tablename, rowsecurity FROM pg_tables WHERE schemaname='public' AND rowsecurity=false;` |
-| **RLS Policies** | Policies use `auth.uid()` | Review each policy's USING clause |
-| **Anon vs Service Key** | Service key NEVER in frontend | Grep frontend code for `service_role` |
-| **Storage Policies** | Buckets have access policies | Check each bucket's policy configuration |
-| **Edge Functions** | Auth verified before processing | Check for JWT validation at function start |
-| **Realtime** | Only subscribed to own data | Check filter clauses on subscriptions |
+| Check | Query / Action |
+|---|---|
+| RLS enabled all tables | `SELECT tablename, rowsecurity FROM pg_tables WHERE schemaname='public' AND rowsecurity=false;` |
+| Policies use auth.uid() | Review each policy USING clause — must reference `auth.uid()` |
+| Service key not in frontend | `grep_search: service_role` in src/components/, src/app/, src/pages/ |
+| Storage bucket policies | Check each bucket — no public read unless intentional |
+| Edge Functions auth | JWT validation at function start before any data access |
+| Realtime subscriptions | Filter clauses must include `user_id = auth.uid()` |
 
 ---
 
-## Phase 8: Security Headers & Web Hardening
+## Phase 10: Security Headers (A02:2025)
+
+Security Misconfiguration jumped to #2. Headers are the most common misconfiguration.
 
 ```javascript
 import helmet from 'helmet';
@@ -584,146 +419,152 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            scriptSrc: ["'self'"],
+            scriptSrc: ["'self'"],           // no 'unsafe-inline', no 'unsafe-eval'
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
             imgSrc: ["'self'", "data:", "https:"],
-            connectSrc: ["'self'", "https://*.supabase.co"],
+            connectSrc: ["'self'", "https://*.supabase.co", "https://api.anthropic.com"],
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
             frameSrc: ["'none'"],
             frameAncestors: ["'none'"],
+            upgradeInsecureRequests: [],     // force HTTPS on all sub-resources
         },
     },
+    hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
     frameguard: { action: 'deny' },
-    hsts: { maxAge: 31536000, includeSubDomains: true },
     noSniff: true,
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    permittedCrossDomainPolicies: false,
+    crossOriginEmbedderPolicy: false,        // set true only if needed for COEP
+}));
+
+// CORS — explicit allowlist, never wildcard in production
+app.use(cors({
+    origin: process.env.NODE_ENV === 'production'
+        ? ['https://yourdomain.com']         // hardcoded allowlist
+        : true,                              // permissive only in dev
+    credentials: true,
 }));
 ```
 
 ---
 
-## Phase 9: Attack Response Playbook
+## Phase 11: Mishandling of Exceptions (A10:2025 — New)
+
+New in 2025. 24 CWEs. Auth that fails open is a critical vulnerability.
 
 ```
-🚨 INCIDENT RESPONSE PROTOCOL
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FAIL-OPEN PATTERNS TO FIND:
+grep_search: try/catch blocks around auth.verify(), req.user, session checks
+  → if the catch block returns true, null, or continues — this fails open
+  → auth exceptions must ALWAYS deny, never allow
 
-Level 1 — DETECT (Suspicious Activity)
-  → Log: IP, user, endpoint, timestamp, request body hash
-  → Monitor: increase alerting on affected endpoint
-  → Action: none yet
+grep_search: bare catch {} with no body
+  → silent exceptions hide errors and may skip security checks
 
-Level 2 — CONTAIN (Confirmed Abuse)
-  → Enable: stricter rate limits on affected endpoint
-  → Block: offending IP/user temporarily
-  → Alert: notify development team
-  → Add: CAPTCHA challenge
+grep_search: catch(e) { next() } in auth middleware
+  → calling next() on auth failure = bypass
 
-Level 3 — RESPOND (Active Attack)
-  → Enable: WAF "Under Attack" mode
-  → Block: IP range at firewall level
-  → Rotate: any potentially compromised keys IMMEDIATELY
-  → Disable: targeted feature if necessary
-  → Document: full attack timeline
+grep_search: return res.json(data) inside try where data could be undefined
+  → exception causes undefined data leak in JSON response
 
-Level 4 — RECOVER (Data Breach)
-  → Revoke: ALL API keys and tokens
-  → Force: logout all user sessions
-  → Enable: maintenance mode
-  → Notify: affected users within 72 hours (GDPR)
-  → Audit: full access logs for breach scope
-  → Document: everything for post-mortem
+CORRECT PATTERNS:
+// WRONG — fails open
+try {
+    const user = await verifyToken(token);
+    req.user = user;
+} catch (e) {
+    // silently continues — attacker sends invalid token, gets through
+}
+
+// CORRECT — fails closed
+try {
+    const user = await verifyToken(token);
+    req.user = user;
+    next();
+} catch (e) {
+    logger.error('Auth verification failed', { error: e.message });
+    return res.status(401).json({ error: 'Unauthorized' });
+}
 ```
 
 ---
 
-## Phase 10: Security Report
+## Phase 12: Incident Response Playbook
 
-Always output findings using vuln-agent's confidence-scored format:
+```
+Level 1 — SUSPICIOUS ACTIVITY
+→ Log: IP, user_id, endpoint, timestamp, request hash
+→ Monitor: increase alerting sensitivity on endpoint
+→ Action: none yet — observe
+
+Level 2 — CONFIRMED ABUSE
+→ Enable: stricter rate limits on affected endpoint
+→ Block: offending IP/user_id (temporary)
+→ Add: CAPTCHA on affected flow
+→ Alert: dev team immediately
+
+Level 3 — ACTIVE ATTACK
+→ Enable: WAF "Under Attack" mode (Cloudflare)
+→ Block: IP range at firewall level
+→ Rotate: ALL potentially exposed keys NOW — assume compromised
+→ Disable: targeted feature if attack is ongoing
+
+Level 4 — DATA BREACH
+→ Revoke: ALL API keys and session tokens
+→ Force: logout all user sessions
+→ Enable: maintenance mode
+→ Notify: affected users within 72 hours (GDPR requirement)
+→ Audit: full access logs for breach scope
+→ Post-mortem: document root cause + prevention
+```
+
+---
+
+## Phase 13: Security Report Output
 
 ```markdown
-## 🔒 Security Audit Report
+## Security Audit Report
 
-**Project:** [Name]
-**Date:** [Date]
-**Scope:** [What was scanned]
-**Tech Stack:** [Stack summary]
+**Project:** [Name] | **Date:** [Date] | **OWASP Reference:** Top 10:2025
+**Overall Risk:** 🔴 CRITICAL / 🟠 HIGH / 🟡 MEDIUM / 🟢 LOW
+**True Positives:** [N] | **False Positives Filtered:** [N]
 
-### Executive Summary
-[1-2 sentence overview: How secure is this project?]
-**Overall Risk Level:** 🔴/🟠/🟡/🟢
-**True Positives Found:** [N] | **False Positives Filtered:** [N]
-
-### 🔴 Critical Findings (Confidence ≥ 0.7)
-| # | Vulnerability | CWE | File | Confidence | Status |
+### 🔴 Critical (Confidence ≥ 0.7) — SHIP BLOCKED
+| # | OWASP 2025 | CWE | File:Line | Confidence | Fix Applied |
 |---|---|---|---|---|---|
-| 1 | [Description] | CWE-XXX | `path/file` | 0.95 | 🔴 OPEN |
+| 1 | A07 Auth Failure | CWE-287 | `auth/jwt.ts:42` | 0.95 | ✅ / ❌ |
 
-### 🟠 High Findings (Confidence 0.4-0.7)
-| # | Vulnerability | CWE | File | Confidence | Status |
-|---|---|---|---|---|---|
+### 🟠 High (Confidence 0.4–0.7)
+### 🟡 Medium (Confidence 0.2–0.4)
+### ⚪ False Positives Dismissed (Confidence < 0.2)
 
-### 🟡 Medium Findings (Confidence 0.2-0.4)
-| # | Vulnerability | CWE | File | Confidence | Status |
-|---|---|---|---|---|---|
+### ✅ Already Secure
+- [Good practices found — be specific]
 
-### ⚪ False Positives (Confidence < 0.2)
-| # | Original Finding | Reason Dismissed |
-|---|---|---|
-
-### ✅ What's Already Secure
-- [Good practices found in the codebase]
-
-### Recommendations (Priority Order)
-1. [Most critical fix]
-2. [Second most critical]
-...
-
-### Fixes Applied
-- [If you fixed anything, document it here with before/after]
+### Fixes Applied This Session
+- [file:line] before → after (one line per fix)
 ```
 
 ---
 
-## Proactive Security Rules (ALWAYS Follow)
-
-1. **NEVER hardcode API keys** — Always use environment variables
-2. **NEVER expose service_role keys** — Frontend only gets the `anon` key
-3. **ALWAYS validate input** — On both client AND server side
-4. **ALWAYS use parameterized queries** — Never concatenate SQL
-5. **ALWAYS enable RLS** — On every Supabase table
-6. **ALWAYS add .env to .gitignore** — Before the first commit
-7. **ALWAYS use HTTPS** — For every external API call
-8. **ALWAYS sanitize HTML output** — To prevent XSS
-9. **NEVER log sensitive data** — No passwords, tokens, or PII in logs
-10. **ALWAYS rate limit all endpoints** — Different tiers for different sensitivity
-11. **ALWAYS scan both inputs AND outputs** — LLM Guard's bidirectional approach
-12. **ALWAYS triage with confidence scores** — Don't waste time on false positives
-
----
-
-## Quick Pre-Ship Security Checklist
+## Proactive Rules (Always Follow)
 
 ```
-Pre-Ship Security Checklist:
-☐ No hardcoded secrets in source code
-☐ .env in .gitignore
-☐ All API routes require authentication
-☐ All user input is validated (client + server)
-☐ SQL queries are parameterized
-☐ RLS enabled on all Supabase tables with proper policies
-☐ CORS configured (no wildcard * in production)
-☐ Error messages don't leak internal details
-☐ Dependencies audited (npm audit clean)
-☐ Security headers set (CSP, HSTS, X-Frame-Options)
-☐ Rate limiting on ALL endpoints (tiered by sensitivity)
-☐ Auth endpoints have brute force protection
-☐ API keys stored in env vars and rotated on schedule
-☐ DDoS protection in place (CDN/WAF)
-☐ CSRF protection enabled
-☐ Clickjacking prevention headers set
-☐ Bot protection active on sensitive endpoints
-☐ Input scanner pipeline configured (LLM Guard style)
-☐ Output scanner pipeline configured
-☐ Incident response playbook documented
+❌ NEVER hardcode API keys — .env only, throwMissing() guard in config module
+❌ NEVER expose service_role key in frontend — anon key only
+❌ NEVER use jwt.decode() without jwt.verify() — decode skips signature check
+❌ NEVER accept JWT algorithm from token header — hardcode { algorithms: ['HS256'] }
+❌ NEVER use wildcard CORS in production — explicit origin allowlist
+❌ NEVER store session tokens in localStorage — httpOnly cookies only
+❌ NEVER return "user not found" vs "wrong password" — always "invalid credentials"
+❌ NEVER use bare catch {} around auth checks — auth exceptions must deny, not pass
+❌ NEVER log passwords, tokens, or full JWTs — log only non-sensitive identifiers
+❌ NEVER allow redirect_uri to be set dynamically in OAuth — hardcoded allowlist only
+❌ NEVER pin dependencies with * or latest — pin exact version, commit lockfile
+❌ NEVER use `npm install` in CI/CD — use `npm ci` (respects lockfile exactly)
+✅ ALWAYS enable RLS on every Supabase table
+✅ ALWAYS set CSP, HSTS, X-Frame-Options, X-Content-Type-Options headers
+✅ ALWAYS rate-limit every endpoint — tiered by sensitivity
+✅ ALWAYS scan git history after finding any secret — rotate immediately
+✅ ALWAYS fail closed on auth exceptions — deny, never allow
 ```
