@@ -27,6 +27,9 @@ You are a **Principal Motion Engineer** — the person who turns static React co
 | *"Scroll animations"* | GSAP ScrollTrigger with pinning + scrub |
 | *"Animate on scroll"* | Framer Motion `useInView` for simple reveal |
 | *"Add a cinematic hero"* | GSAP timeline with orchestrated sequence |
+| *"Smooth scroll"* / *"Lenis"* | Part 6 — Lenis smooth scroll setup |
+| *"Text reveal"* / *"animate text on scroll"* | Part 6C — SplitType text reveal |
+| *"CSS scroll animation"* / *"native scroll animation"* | Part 6B — CSS Scroll-Driven Animations |
 
 ---
 
@@ -578,6 +581,151 @@ Step 5: VALIDATE
 
 ---
 
+## Part 6 — Smooth Scroll + Text Reveals (Storytelling Additions)
+
+### 6A. Lenis Smooth Scroll
+
+Lenis is the industry standard for buttery smooth scrolling on premium sites. Integrates directly with GSAP ScrollTrigger.
+
+```bash
+npm install lenis
+```
+
+```tsx
+// src/providers/LenisProvider.tsx
+import { useEffect } from "react"
+import Lenis from "lenis"
+import { ScrollTrigger } from "gsap/ScrollTrigger"
+import gsap from "gsap"
+
+gsap.registerPlugin(ScrollTrigger)
+
+export function LenisProvider({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      touchMultiplier: 2,
+    })
+
+    // Critical: sync Lenis with GSAP ScrollTrigger
+    lenis.on("scroll", ScrollTrigger.update)
+    gsap.ticker.add((time) => lenis.raf(time * 1000))
+    gsap.ticker.lagSmoothing(0)
+
+    return () => lenis.destroy()
+  }, [])
+
+  return <>{children}</>
+}
+```
+
+Wrap in `src/main.tsx`:
+```tsx
+<LenisProvider><App /></LenisProvider>
+```
+
+### 6B. CSS Scroll-Driven Animations (Native — No JS)
+
+Browser native, no library needed. Chrome 115+, Firefox 110+. Use for simple reveals.
+
+```css
+/* Fade up on scroll — zero JS */
+@keyframes reveal {
+  from { opacity: 0; transform: translateY(40px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.reveal {
+  animation: reveal linear both;
+  animation-timeline: view();
+  animation-range: entry 0% cover 35%;
+}
+
+/* Sticky scroll progress bar */
+.scroll-progress {
+  position: fixed;
+  top: 0; left: 0;
+  height: 3px;
+  background: var(--primary);
+  transform-origin: left;
+  animation: scaleX linear;
+  animation-timeline: scroll(root);
+}
+
+@keyframes scaleX {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+```
+
+> Wrap in `@supports (animation-timeline: scroll())` when mixing with GSAP fallbacks.
+
+### 6C. SplitType Text Reveals
+
+Per-character / per-word reveal animations — the signature of premium storytelling sites.
+
+```bash
+npm install split-type
+```
+
+```tsx
+// src/components/TextReveal.tsx
+import { useRef } from "react"
+import SplitType from "split-type"
+import gsap from "gsap"
+import { ScrollTrigger } from "gsap/ScrollTrigger"
+import { useGSAP } from "@gsap/react"
+
+gsap.registerPlugin(ScrollTrigger, useGSAP)
+
+export function TextReveal({ text, className }: { text: string; className?: string }) {
+  const ref = useRef<HTMLHeadingElement>(null)
+
+  useGSAP(() => {
+    if (!ref.current) return
+    const split = new SplitType(ref.current, { types: "chars" })
+
+    gsap.from(split.chars, {
+      opacity: 0,
+      y: "120%",        // Characters rise from below
+      rotationX: -90,
+      stagger: 0.02,
+      duration: 0.6,
+      ease: "back.out(1.5)",
+      scrollTrigger: {
+        trigger: ref.current,
+        start: "top 85%",
+        once: true,
+      },
+      onComplete: () => split.revert(),
+    })
+  }, { scope: ref })
+
+  return <h2 ref={ref} className={className}>{text}</h2>
+}
+```
+
+**Word-highlight variant (for body copy):**
+
+```tsx
+const split = new SplitType(ref.current, { types: "words" })
+
+gsap.from(split.words, {
+  opacity: 0,
+  filter: "blur(8px)",
+  stagger: 0.05,
+  duration: 0.5,
+  ease: "power2.out",
+  scrollTrigger: { trigger: ref.current, start: "top 85%", once: true },
+})
+```
+
+> For full scroll storytelling (pinned sections, parallax layers, horizontal scroll): use the **scroll-storytelling** skill.
+> For 3D hero backgrounds and particle systems: use the **three-d** skill.
+
+---
+
 ## Anti-Patterns — The Motion Engineer's Red Flags
 
 ```
@@ -592,4 +740,6 @@ Step 5: VALIDATE
 ❌ Missing cleanup in GSAP event handlers — use contextSafe() for event callbacks
 ❌ Setting initial={true} on page already visible — causes flash of invisible content
 ❌ Using JavaScript setInterval for animation — never. Use GSAP or requestAnimationFrame.
+❌ Skipping Lenis when using GSAP ScrollTrigger on storytelling sites — causes jitter
+❌ SplitType without revert() on unmount — leaves split DOM nodes in place
 ```

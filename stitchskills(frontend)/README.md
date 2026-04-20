@@ -12,7 +12,9 @@ Custom agent skills for **UI design, prompt engineering, and frontend developmen
 | 🎬 **[remotion](./remotion/SKILL.md)** | Generate walkthrough videos from Stitch projects using Remotion | *"Show me a walkthrough of my screens"* |
 | 🎨 **[shadcn-ui](./shadcn-ui/SKILL.md)** | Expert guidance for integrating and building applications with shadcn/ui | *"How do I add a shadcn sidebar?"* |
 | 🔄 **[stitch-loop](./stitch-loop/SKILL.md)** | Iteratively build websites using an autonomous baton-passing loop | *"Start the build loop"* |
-| 🎭 **[motion-design](./motion-design/SKILL.md)** | Add production-grade Framer Motion + GSAP animations (spring physics, scroll triggers, stagger lists, shared layouts) | *"Make it feel alive"* |
+| 🎭 **[motion-design](./motion-design/SKILL.md)** | Add production-grade Framer Motion + GSAP animations (spring physics, scroll triggers, stagger lists, shared layouts, Lenis smooth scroll, SplitType text reveals) | *"Make it feel alive"* |
+| 📜 **[scroll-storytelling](./scroll-storytelling/SKILL.md)** | Build immersive scroll-driven narratives — Lenis + GSAP ScrollTrigger, pinned sections, horizontal scroll, parallax layers, text reveals, progress bars | *"Make it scroll like an Apple page"* |
+| 🧊 **[three-d](./three-d/SKILL.md)** | Build 3D web experiences with React Three Fiber + Drei — 3D hero backgrounds, particle systems, scroll-synced 3D, Spline embeds, WebGL optimization | *"Add a 3D background"* |
 | 🔀 **[state-flow](./state-flow/SKILL.md)** | Architect server-state (TanStack Query v5) and client-state (Zustand v5) using the Iron Rule, slice pattern, optimistic updates, and query key registry | *"Connect this to real data"* |
 
 ## The Frontend Workflow
@@ -32,6 +34,8 @@ Custom agent skills for **UI design, prompt engineering, and frontend developmen
 │  "Add shadcn sidebar" → Shadcn-UI                       │
 │  "Start build loop" → Stitch-Loop                       │
 │  "Make it feel alive" → Motion-Design                   │
+│  "Make it scroll like Apple" → Scroll-Storytelling      │
+│  "Add a 3D background" → Three-D                        │
 │  "Connect this to real data" → State-Flow               │
 │                                                         │
 ├─────────────────────────────────────────────────────────┤
@@ -60,7 +64,11 @@ stitchskills(frontend)/
 ├── stitch-loop/
 │   └── SKILL.md                 ← Autonomous iteration loop
 ├── motion-design/
-│   └── SKILL.md                 ← Framer Motion + GSAP animations
+│   └── SKILL.md                 ← Framer Motion + GSAP + Lenis + SplitType
+├── scroll-storytelling/
+│   └── SKILL.md                 ← Lenis, pinned sections, parallax, text reveals
+├── three-d/
+│   └── SKILL.md                 ← React Three Fiber + Drei + Spline
 └── state-flow/
     └── SKILL.md                 ← TanStack Query + Zustand architecture
 ```
