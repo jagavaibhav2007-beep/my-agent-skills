@@ -25,11 +25,15 @@ MyAgents-AI-Arsenal/
 │   ├── shadcn-ui/
 │   └── stitch-loop/
 ├── agentskills(backend)/        ← Debugging, security, and logic
+│   ├── ai-engineer/
 │   ├── database/
 │   ├── debugger/
+│   ├── deployment-engineer/
 │   ├── docs-memory/
 │   ├── refactorer/
+│   ├── scale-advisor/
 │   ├── security/
+│   ├── system-architect/
 │   └── testing/
 └── .github/workflows/           ← CI/CD for skill validation
 ```

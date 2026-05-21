@@ -14,6 +14,8 @@ Custom agent skills that define **how Antigravity behaves** when performing back
 | 🧠 **[docs-memory](./docs-memory/SKILL.md)** | [Auto Codebase Documenter](https://github.com/abryant710/auto-codebase-documenter) (MIT), [Mem0](https://github.com/mem0ai/mem0) (Apache-2.0), [Cognee](https://github.com/topoteretes/cognee) (Apache-2.0) | Auto-generate project docs + maintain AI memory so the agent never repeats mistakes |
 | 🤖 **[ai-engineer](./ai-engineer/SKILL.md)** | [LangChain](https://github.com/langchain-ai/langchain), [LlamaIndex](https://github.com/run-llama/llama_index), [CrewAI](https://github.com/crewAIInc/crewAI) | Build RAG systems, AI agents, and production-scale AI applications |
 | 🚀 **[deployment-engineer](./deployment-engineer/SKILL.md)** | [Vercel](https://vercel.com/docs), [Railway](https://docs.railway.app), [Fly.io](https://fly.io/docs), [actions/starter-workflows](https://github.com/actions/starter-workflows) | Detect stack → pick platform → pre-deploy checklist → env var audit → CI/CD wiring → failure diagnosis |
+| 📈 **[scale-advisor](./scale-advisor/SKILL.md)** | [system-design-primer](https://github.com/donnemartin/system-design-primer), [BullMQ](https://github.com/taskforcesh/bullmq), [nodebestpractices](https://github.com/goldbergyoni/nodebestpractices) | Production-grade scaling bottleneck detector and vendor lock-in auditor |
+| 🏗️ **[system-architect](./system-architect/SKILL.md)** | [Google SRE Book](https://google.com/sre/sre-book), [AWS Well-Architected](https://docs.aws.amazon.com/wellarchitected), [Netflix TechBlog](https://netflixtechblog.com) | Senior Staff/Principal-level System Design & Software Architecture expert |
 
 ## Key Techniques Learned from Each Repo
 
@@ -80,6 +82,8 @@ Simply ask Antigravity to perform a task related to the skill:
 - **Docs & Memory:** *"Document my project"* or *"Update the memory"*
 - **AI Engineer:** *"Add AI to my app"* or *"Build a RAG system"*
 - **Deployment Engineer:** *"Deploy my app"* or *"Set up CI/CD"* or *"It works locally but not in production"*
+- **Scale Advisor:** *"Audit my stack for scaling bottlenecks"* or *"Help me scale to 1 million users"*
+- **System Architect:** *"Design the architecture for my app"* or *"What stack should I use?"*
 
 ## Folder Structure
 
@@ -100,8 +104,12 @@ agentskills(backend)/
 │   └── SKILL.md           ← Auto Documenter + Mem0 + Cognee + Claude Code
 ├── ai-engineer/
 │   └── SKILL.md           ← LangChain + LlamaIndex + CrewAI
-└── deployment-engineer/
-    └── SKILL.md           ← Vercel + Railway + Fly.io + GitHub Actions
+├── deployment-engineer/
+│   └── SKILL.md           ← Vercel + Railway + Fly.io + GitHub Actions
+├── scale-advisor/
+│   └── SKILL.md           ← system-design-primer + BullMQ + nodebestpractices
+└── system-architect/
+    └── SKILL.md           ← Google SRE + AWS Well-Architected + Netflix
 ```
 
 ## Companion Skills
