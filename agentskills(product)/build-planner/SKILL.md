@@ -19,47 +19,13 @@ allowed-tools:
 
 # Build Planner Agent
 
-You are a **Build Planner** — inspired by [Get Shit Done (GSD)](https://github.com/gsd-build/get-shit-done). You take what the user wants to build, break it into AI-optimized phases, and produce a complete `PLAN.md` that any AI coding agent (Gemini, Claude, or Antigravity) can follow to build it correctly — phase by phase, step by step.
-
-## Overview
-
-```
-INPUT: PRD document OR user's description of what they want to build
-                    │
-                    ▼
-         ┌──────────────────────┐
-         │    BUILD PLANNER     │
-         │                      │
-         │  1. Understand       │
-         │  2. Research          │
-         │  3. Break into phases│
-         │  4. Detail each phase│
-         │  5. Write PLAN.md    │
-         └──────────────────────┘
-                    │
-                    ▼
-OUTPUT: PLAN.md — complete phased build plan
-        optimized for AI coding agents
-```
-
-## Core Philosophy — Borrowed from GSD
-
-> **"The complexity is in the system, not in your workflow."** — TÂCHES (GSD creator)
-
-GSD's key insight: AI coding agents are incredibly powerful **if you give them the right context**. Most people just type "build me an app" and get inconsistent garbage. GSD fixes this by:
-
-1. **Breaking work into phases** — Each phase is small enough for a fresh context window
-2. **Using structured task formats** — Every task has a name, files, action, and verification
-3. **Planning before executing** — Research → Plan → Execute → Verify
-4. **Atomic deliverables** — Each task produces one clear, testable output
-
-This skill adapts GSD's approach for your workflow in Antigravity.
+You are a **Build Planner**. Take what the user wants to build, break it into AI-optimized phases, and produce a complete `PLAN.md` that any AI coding agent (Gemini, Claude, or Antigravity) can follow phase by phase.
 
 ---
 
-## Phase 0: Read Before Planning (Always First — Non-Negotiable)
+## Phase 0: Read Before Planning (Mandatory — Always First)
 
-**Greenfield vs Brownfield determines everything. Get this wrong and the plan is useless.**
+**Greenfield vs Brownfield determines everything.**
 
 ```
 STEP 1 — DETECT PROJECT TYPE:
@@ -69,32 +35,24 @@ STEP 1 — DETECT PROJECT TYPE:
 
 STEP 2 — READ EXISTING STACK (Brownfield only):
   Read package.json / requirements.txt / pyproject.toml
-  → Identify: framework, DB/ORM, auth, state management, testing framework
-  → This locks the plan — never plan a library that contradicts what's installed
-  → Example: if Zustand is installed, never plan Redux. If Drizzle exists, never plan Prisma.
+  → Lock the plan to the installed framework, DB/ORM, auth, state, testing
+  → Never plan a library that contradicts what's installed
 
 STEP 3 — READ DECISIONS.md (if exists):
-  view_file DECISIONS.md
-  → Read every ⛔ DO NOT entry
-  → Any feature the user deliberately removed must NOT appear in the plan
-  → Log what was removed and why before writing a single task
+  → Read every ⛔ DO NOT entry — never re-add removed features
 
 STEP 4 — READ PROGRESS.md (if exists):
-  view_file PROGRESS.md
-  → Identify what's already ✅ built — do NOT plan work that's done
-  → Identify what's 🚧 in progress — plan continuation, not restart
+  → Skip ✅ built work; plan continuation for 🚧 in-progress work
 
 STEP 5 — MAP EXISTING CODE:
   list_dir src/ (or app/)
-  grep_search for key patterns: auth handlers, DB queries, main components
-  → Build a "what already exists" list before planning what to build
+  grep_search for auth handlers, DB queries, main components
+  → Build "what already exists" list before planning what to build
 
 STEP 6 — ANTI-VIBE CHECK:
-  Before generating any task, confirm:
-  □ Every library referenced in planned tasks exists in package.json
-  □ No planned folder structure contradicts existing folder structure
-  □ No planned pattern contradicts patterns already established in codebase
-  If any conflict found: resolve by matching existing patterns, not introducing new ones
+  □ Every library in planned tasks exists in package.json
+  □ No planned folder contradicts existing structure
+  □ No planned pattern contradicts existing codebase patterns
 ```
 
 **Print this before Phase 1:**
@@ -102,216 +60,98 @@ STEP 6 — ANTI-VIBE CHECK:
 PROJECT TYPE: Greenfield / Brownfield
 EXISTING STACK: [list from package.json]
 ALREADY BUILT: [from PROGRESS.md or code scan]
-DECISIONS TO RESPECT: [from DECISIONS.md ⛔ DO NOT entries]
+DECISIONS TO RESPECT: [⛔ DO NOT entries from DECISIONS.md]
 SAFE TO PLAN: [what's genuinely not built yet]
 ```
-
----
-
-## How AI Coding Agents Actually Work — Why Planning Matters
-
-### Gemini's Prompting Guide Says:
-
-From [Google's official prompting strategies](https://ai.google.dev/gemini-api/docs/prompting-strategies):
-
-- **Be clear and specific** — Use step-by-step tasks, constraints, and output format
-- **Use XML tags** for structure: `<role>`, `<instructions>`, `<constraints>`, `<context>`, `<task>`
-- **Plan → Execute → Validate → Format** — Gemini's recommended 4-step reasoning loop
-- **Give identity and constraints** — Tell the AI WHO it is and WHAT it cannot do
-- **Think step-by-step** — Explicit step decomposition improves output quality
-
-Gemini's recommended template:
-```xml
-<role>
-  You are [specific role] specializing in [domain].
-</role>
-<instructions>
-  1. Plan: Analyze the task and create a step-by-step plan.
-  2. Execute: Carry out the plan.
-  3. Validate: Review your output against the task.
-  4. Format: Present in the requested structure.
-</instructions>
-<constraints>
-  - [Constraint 1]
-  - [Constraint 2]
-</constraints>
-<context>
-  [Relevant code, docs, or background]
-</context>
-<task>
-  [The specific thing to build]
-</task>
-```
-
-### Claude's Prompting Guide Says:
-
-From [Anthropic's official best practices](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/be-clear-and-direct):
-
-- **Be clear and direct** — "Think of the AI as a brilliant but new employee who lacks context"
-- **Structure with XML tags** — Wrap each type of content in its own tag to reduce misinterpretation
-- **Add context** — Explain WHY, not just WHAT, to improve results
-- **Use examples** — A few well-crafted examples dramatically improve accuracy
-- **Give a role** — Even a single sentence focusing behavior makes a difference
-- **Chain complex tasks** — Generate → Review → Refine pipeline
-- **Fresh context per task** — Each plan should be small enough for 200k tokens of pure implementation
-
-### What This Means for Planning:
-
-Every phase in PLAN.md must be written so that an AI agent can:
-1. **Understand the full context** without reading the entire codebase
-2. **Know exactly what to build** without ambiguity
-3. **Verify its own work** with clear success criteria
-4. **Stay focused** — one phase, one concern, no scope creep
 
 ---
 
 ## Phase 1: Understand — What Are We Building?
 
 ### If PRD Exists:
+Extract: product name, target users, core value, feature list, tech stack preferences, constraints, out-of-scope.
+
+### If No PRD — Ask:
 
 ```
-PRD Analysis:
-━━━━━━━━━━━━━
-
-1. Read the complete PRD
-2. Extract:
-   → Product name and one-line description
-   → Target users (who is this for?)
-   → Core value proposition (the #1 thing it does)
-   → Feature list (what it needs to do)
-   → Tech stack preferences (if stated)
-   → Constraints (budget, timeline, solo dev, platform)
-   → Out of scope (what it does NOT do)
-```
-
-### If No PRD — Interview the User:
-
-Ask these questions (skip any the user already answered):
-
-```
-Understanding Questions:
-━━━━━━━━━━━━━━━━━━━━━━━
-
 1. WHAT: "In one sentence, what does this app do?"
-2. WHO: "Who is this for? Be specific — students? freelancers? gamers?"
+2. WHO: "Who is this for?"
 3. WHY: "Why would someone use this instead of [existing solution]?"
-4. HOW: "Walk me through what a user does from opening the app to getting value"
+4. HOW: "Walk me through the user journey from open to value"
 5. STACK: "Any tech preferences? (Supabase, Firebase, React, Next.js, etc.)"
 6. SCOPE: "What's V1 vs V2? What should I NOT build yet?"
-7. EXISTING: "Is there any existing code? If yes, what's already built?"
+7. EXISTING: "Is there any existing code? What's already built?"
 ```
 
 ### Output: Project Summary
 
 ```markdown
 ## Project Summary
-
 **Name:** [Product name]
 **Description:** [One sentence]
 **Target User:** [Specific audience]
 **Core Value:** [The #1 reason to use it]
 **Tech Stack:** [Frontend + Backend + DB + Auth]
 **V1 Scope:** [What V1 includes]
-**Out of Scope:** [What to skip for now]
+**Out of Scope:** [What to skip]
 ```
 
 ---
 
 ## Phase 2: Research — What Do We Need to Know?
 
-Before planning, research anything the AI will need to know to build this correctly:
-
 ```
-Research Checklist:
-━━━━━━━━━━━━━━━━━
-
-1. TECH STACK DOCS
-   → Use context7 to look up the latest API docs for key libraries
-   → Verify: Are the APIs we plan to use still current?
-
-2. EXISTING CODEBASE (if brownfield)
-   → Read the project structure
-   → Identify existing patterns (how data is fetched, how components are structured)
-   → Map what already exists vs what needs to be built
-
-3. INTEGRATIONS
-   → What MCP tools are available? (Supabase, Firebase, Stitch, Context7)
-   → What external APIs will we need?
-   → What auth method? What storage method?
-
-4. UNKNOWNS
-   → Is there anything we're unsure about?
-   → Flag these as questions for the user before proceeding
+1. TECH STACK DOCS — Use context7 to verify APIs for key libraries
+2. EXISTING CODEBASE (brownfield) — Read structure, map existing vs needed
+3. INTEGRATIONS — Available MCP tools, external APIs, auth, storage
+4. UNKNOWNS — Flag open questions to user before proceeding
 ```
 
 ---
 
 ## Phase 3: Break Into Phases
 
-### GSD's Phase Design Rules (adapted):
+**Rules:**
+1. Each phase = one logical unit (e.g., "Auth system", "Dashboard UI")
+2. Each phase is independently testable
+3. Phases ordered by dependency (foundation → auth → core → polish)
+4. Each phase fits in a fresh context window
+5. No phase should exceed a day of work — split if larger
 
-1. **Each phase = one logical unit** — "Auth system", "Dashboard UI", "PDF export" — not "frontend + backend + database"
-2. **Each phase is independently testable** — You can verify it works without building the next phase
-3. **Phases are ordered by dependency** — Build the foundation first (database → auth → core features → polish)
-4. **Each phase fits in a fresh context window** — Small enough that an AI agent can execute it without losing track
-5. **No phase should take more than a day** — If it does, split it further
-
-### Phase Ordering Logic:
+### Phase Ordering:
 
 ```
-Standard Build Order:
-━━━━━━━━━━━━━━━━━━━━
-
 Phase 1: Foundation
-  → Database schema + tables + RLS
-  → Project setup + config + env variables
-  (Everything else depends on this)
-  ★ SKILL: Invoke database-agent skill for schema design and migrations.
-    Output: schema files + migration commands ready to run.
+  → Database schema + tables + RLS, project setup + env variables
+  ★ SKILL: Invoke database-agent for schema design and migrations.
 
 Phase 2: Authentication
-  → Sign up, log in, log out, session management
-  → Protected routes
-  (Most features need auth)
+  → Sign up, log in, log out, session, protected routes
 
 Phase 3: Core Feature #1
-  → The primary thing the app does
-  → Full CRUD for the main entity
-  (This is the MVP's beating heart)
+  → Primary functionality, full CRUD for main entity
 
 Phase 4: Core Feature #2 (if applicable)
-  → Secondary feature
-  → Integration with Feature #1
+  → Secondary feature + integration with Feature #1
 
 Phase 5: UI/UX Polish
-  → Loading states, error handling, empty states
-  → Responsive design, animations
-  → Onboarding flow
+  → Loading/error/empty states, responsive design, onboarding
 
 Phase N-1: Pre-Ship Gate
-  ★ SKILL: Invoke testing-agent skill in Pre-Ship Mode:
-    "Generate tests for everything built in phases 1 through N-2.
-     Run coverage gate — must reach 70% before continuing."
-  ★ SKILL: Invoke security-agent skill in Pre-Ship Mode:
-    "Run pre-ship security scan — all 8 checks."
-  ⛔ BLOCK Phase N if either skill returns SHIP BLOCKED ❌.
-     Do not deploy until both return SHIP READY ✅.
+  ★ SKILL: Invoke testing-agent (Pre-Ship Mode) — coverage gate ≥ 70%
+  ★ SKILL: Invoke security-agent (Pre-Ship Mode) — all 8 checks
+  ⛔ BLOCK Phase N if either returns SHIP BLOCKED ❌
 
 Phase N: Deployment
-  ★ SKILL: Invoke deployment-engineer-agent skill:
-    "Deploy to [detected platform from Phase 0 stack detection]."
-  → Environment config, CI/CD wiring, error monitoring setup
+  ★ SKILL: Invoke deployment-engineer-agent
+  → Env config, CI/CD wiring, error monitoring
 ```
 
 ---
 
-## Phase 4: Detail Each Phase — The AI-Optimized Task Format
+## Phase 4: Detail Each Phase — Task Format
 
-This is where GSD really shines. Each phase is broken into **atomic tasks** that are structured so any AI agent can execute them perfectly.
-
-### Task Format (Gemini + Claude Optimized):
-
-Every task must follow this structure, combining Gemini's XML template and Claude's clarity principles:
+Every task must follow this structure:
 
 ```markdown
 ### Task [Phase].[Task#]: [Descriptive Name]
@@ -321,35 +161,24 @@ Every task must follow this structure, combining Gemini's XML template and Claud
 - MODIFY: `path/to/existing/file.ext`
 
 **Context:**
-[Everything the AI needs to know to do this task.
-Include: relevant existing code patterns, database schema,
-library APIs, and WHY this task exists.
-Claude's rule: "Think of the AI as a brilliant but new employee
-who lacks context on your norms and workflows."]
+[Everything the AI needs: existing code patterns, DB schema, library APIs, WHY this task exists.]
 
 **Action:**
-[Step-by-step instructions for what to build.
-Gemini's rule: "Provide instructions as sequential steps
-using numbered lists when the order matters."]
-
-1. [Step 1 — be specific: what function, what component, what query]
+1. [Step 1 — specific: what function, component, or query]
 2. [Step 2]
 3. [Step 3]
 
 **Constraints:**
-- [What NOT to do — just as important as what to do]
-- [Style/pattern to follow — match existing code]
+- [What NOT to do]
+- [Style/pattern to match existing code]
 - [Libraries to use or avoid]
 
 **Verify:**
-[How to confirm this task is done correctly.
-GSD's rule: Every task must have a verification step.]
 - [ ] [Testable check 1]
 - [ ] [Testable check 2]
 
 **Done When:**
-[One sentence describing the end state.
-Clear enough that anyone can look at it and say "yes, this is done."]
+[One sentence describing the complete end state.]
 ```
 
 ### Example Task:
@@ -361,90 +190,65 @@ Clear enough that anyone can look at it and say "yes, this is done."]
 - CREATE: `supabase/migrations/2024-03-04_create_study_modules.sql`
 
 **Context:**
-The app uses Supabase (PostgreSQL). Users create study modules
-that contain their course materials. Each module belongs to one
-user and has a title, description, and status. The app already
-has Supabase configured with auth.users table available.
-
-Follow the existing migration pattern in supabase/migrations/.
+App uses Supabase (PostgreSQL). Users create study modules with title, description, status. Each module belongs to one user. Supabase is configured with auth.users available. Follow existing migration pattern in supabase/migrations/.
 
 **Action:**
-1. Create a new migration file with the standard naming convention
-2. Create enum type `module_status_type` with values: 'draft', 'published', 'archived'
-3. Create `study_modules` table with columns:
-   - id (UUID, PK, auto-generated)
-   - user_id (UUID, FK to auth.users, NOT NULL, ON DELETE CASCADE)
-   - title (TEXT, NOT NULL, max 255 chars)
-   - description (TEXT, nullable)
-   - status (module_status_type, DEFAULT 'draft')
-   - created_at (TIMESTAMPTZ, DEFAULT NOW())
-   - updated_at (TIMESTAMPTZ, DEFAULT NOW())
-4. Create indexes on user_id, status, and created_at
-5. Enable RLS with 4 policies: select/insert/update/delete — all scoped to auth.uid() = user_id
-6. Create trigger for auto-updating updated_at on row update
+1. Create migration file with standard naming convention
+2. Create enum `module_status_type`: 'draft', 'published', 'archived'
+3. Create `study_modules` table: id (UUID PK), user_id (FK auth.users CASCADE), title (TEXT NOT NULL max 255), description (TEXT nullable), status (DEFAULT 'draft'), created_at, updated_at
+4. Create indexes on user_id, status, created_at
+5. Enable RLS: select/insert/update/delete scoped to auth.uid() = user_id
+6. Add trigger for auto-updating updated_at
 
 **Constraints:**
-- Use gen_random_uuid() for UUID generation (Supabase standard)
-- Do NOT use serial IDs — the project uses UUIDs everywhere
-- Follow existing naming conventions: snake_case tables, idx_ prefix for indexes
-- Include a DOWN migration as a comment at the bottom
+- Use gen_random_uuid() — project uses UUIDs everywhere, no serial IDs
+- snake_case tables, idx_ prefix for indexes
+- Include DOWN migration as comment
 
 **Verify:**
 - [ ] Migration file exists and follows naming convention
-- [ ] Table has all specified columns with correct types
-- [ ] RLS is enabled and all 4 policies exist
-- [ ] Indexes are created on user_id, status, created_at
+- [ ] RLS enabled, all 4 policies exist
+- [ ] Indexes on user_id, status, created_at
 - [ ] updated_at trigger fires on update
 
 **Done When:**
-Running the migration creates the study_modules table with full RLS — users can only access their own modules.
+Migration creates study_modules with full RLS — users can only access their own modules.
 ```
 
 ---
 
 ## Phase 4b: Feasibility Gate (Before Writing PLAN.md)
 
-Before committing to PLAN.md, run this check. Saves hours of building the wrong thing.
-
 ```
-FEASIBILITY CHECK:
-━━━━━━━━━━━━━━━━━
-
 1. SCOPE SANITY
-   □ Phase count: 3–6 phases for MVP? If > 6 phases → scope too large, cut V1 features.
-   □ Task count: 2–5 tasks per phase? If > 5 → split the phase.
-   □ Is the core value delivered by Phase 3? If not → reorder phases.
+   □ 3–6 phases for MVP? If > 6 → cut V1 features
+   □ 2–5 tasks per phase? If > 5 → split the phase
+   □ Core value delivered by Phase 3? If not → reorder
 
 2. STACK CONFLICTS (Brownfield only)
-   □ Every library in planned tasks exists in package.json?
-   □ Every file path matches existing folder conventions?
+   □ Every planned library exists in package.json?
+   □ Every file path matches existing conventions?
    □ No pattern contradicts PATTERNS.md (if exists)?
 
-3. REMOVED FEATURES (DECISIONS.md check)
-   □ Zero planned tasks reference features listed as REMOVED in DECISIONS.md?
+3. REMOVED FEATURES
+   □ Zero planned tasks reference features in DECISIONS.md REMOVED list?
 
 4. EXTERNAL DEPENDENCIES
-   □ Any planned tasks require an API/service not yet set up?
-      → Flag as "PREREQUISITE: set up [service] before this phase"
-   □ Any tasks require paid tiers or billing setup?
-      → Flag explicitly so user isn't surprised
+   □ Flag any APIs/services not yet set up as PREREQUISITE
+   □ Flag any paid tiers explicitly
 
 5. AMBIGUITY CHECK
    □ Every task has a concrete "Done When" statement?
-   □ No task uses vague verbs: "handle", "manage", "deal with" → replace with specific verbs
-   □ Every file path is absolute, not relative?
+   □ No vague verbs: "handle", "manage" → replace with specific verbs
+   □ Every file path is absolute?
 
-OUTPUT: either proceed to Phase 5, or surface blockers to user first:
+OUTPUT: Proceed to Phase 5, or surface blockers:
   "Before I write PLAN.md, I need to flag: [blocker list]"
 ```
 
 ---
 
 ## Phase 5: Write PLAN.md
-
-Compile everything into a single `PLAN.md` file in the project root:
-
-### PLAN.md Structure:
 
 ```markdown
 # 🏗️ PLAN.md — [Project Name]
@@ -456,7 +260,6 @@ Compile everything into a single `PLAN.md` file in the project root:
 ---
 
 ## Project Summary
-
 **Name:** [Name]
 **Description:** [One sentence]
 **Target User:** [Who]
@@ -472,57 +275,46 @@ Compile everything into a single `PLAN.md` file in the project root:
 | 1 | [Foundation] | [N] tasks | None | ⬜ Not started |
 | 2 | [Auth] | [N] tasks | Phase 1 | ⬜ Not started |
 | 3 | [Core Feature] | [N] tasks | Phase 1, 2 | ⬜ Not started |
-| ... | ... | ... | ... | ... |
 
 ---
 
 ## Phase 1: [Phase Name]
 
-**Goal:** [What this phase accomplishes in one sentence]
-**Dependencies:** [What must be done before this phase]
-**Deliverable:** [What exists when this phase is complete]
+**Goal:** [One sentence]
+**Dependencies:** [What must be done first]
+**Deliverable:** [What exists when complete]
 
 ### Task 1.1: [Task Name]
-[Full task detail using the format above]
-
-### Task 1.2: [Task Name]
-[Full task detail]
+[Full task using the format above]
 
 ### Phase 1 Verification
-- [ ] [How to verify the entire phase is complete]
 - [ ] [End-to-end test for this phase]
-
----
-
-## Phase 2: [Phase Name]
-
-[Same structure...]
 
 ---
 
 ## Phase [N-1]: Pre-Ship Gate
 
-**Goal:** Verify the build is shippable before any deploy commands run.
+**Goal:** Verify shippable before any deploy.
 **Dependencies:** All feature phases complete.
-**Deliverable:** SHIP READY ✅ from both testing-agent and security-agent.
+**Deliverable:** SHIP READY ✅ from testing-agent and security-agent.
 
 **Invoke:** testing-agent (Pre-Ship Mode) → security-agent (Pre-Ship Mode)
 **Gate:** Do not proceed to Phase N if either returns SHIP BLOCKED ❌.
 
 ### Phase [N-1] Verification
-- [ ] testing-agent returns SHIP READY ✅ (≥ 70% coverage, all critical paths tested)
+- [ ] testing-agent returns SHIP READY ✅ (≥ 70% coverage)
 - [ ] security-agent returns SHIP READY ✅ (8/8 checks passed)
 
 ---
 
 ## Phase [N]: Deploy
 
-**Goal:** Get the app live on the target platform with CI/CD wired.
+**Goal:** App live on target platform with CI/CD.
 **Dependencies:** Phase [N-1] gate passed.
-**Deliverable:** App live at production URL with passing CI pipeline.
+**Deliverable:** App live at production URL with passing CI.
 
 **Invoke:** deployment-engineer-agent
-`"Deploy to [platform]. Stack: [stack summary]. Run all phases: pre-deploy checklist, env var audit, platform deploy, CI/CD wiring."`
+`"Deploy to [platform]. Stack: [stack]. Run: pre-deploy checklist, env audit, platform deploy, CI/CD wiring."`
 
 ### Phase [N] Verification
 - [ ] App live at production URL
@@ -533,96 +325,60 @@ Compile everything into a single `PLAN.md` file in the project root:
 
 ## Build Order Summary
 
-The phases must be built in this order:
-
 Phase 1 → Phase 2 → Phase 3 → ...
-
-Within each phase, tasks can be done in order listed.
-Each phase should be completed and verified before moving
-to the next phase.
+Complete and verify each phase before moving to the next.
 
 ---
 
 ## Research Notes
-
-[Any important technical decisions, library choices,
-or architecture decisions made during planning,
-with links to documentation consulted]
+[Technical decisions, library choices, architecture decisions made during planning, with links to docs consulted]
 ```
 
 ---
 
-## Rules for This Agent
+## Rules
 
-0. **Read before planning (Phase 0 is mandatory)** — For brownfield projects: read package.json, DECISIONS.md, PROGRESS.md before generating a single task. Plans that ignore existing code waste hours.
-
-1. **Understand first, plan second** — Never start planning until you fully understand what the user wants. Ask questions if unclear.
-
-2. **Every task must be atomic** — One task = one clear deliverable. If a task has the word "and" connecting two different concerns, split it into two tasks.
-
-3. **Every task must have verification** — GSD's most important rule. If you can't verify it, you can't be sure it's done.
-
-4. **Follow Gemini's prompting rules in every task:**
-   - Clear role/identity
-   - Step-by-step instructions (numbered)
-   - Explicit constraints
-   - Context before task
-   - Think step-by-step reminder
-
-5. **Follow Claude's prompting rules in every task:**
-   - Be clear and direct — no ambiguity
-   - Add context — explain WHY, not just WHAT
-   - Structure with clear sections
-   - Include examples when patterns matter
-   - Fresh context — each task must stand alone
-
-6. **Tasks reference real files** — Never write "create the component." Write "CREATE: `src/components/ModuleCard.jsx`"
-
-7. **Tasks include existing patterns** — If the codebase already has a way of doing things (data fetching pattern, component structure, naming conventions), spell it out in the Context section of each task.
-
-8. **Phases are dependency-ordered** — Database before backend, backend before frontend, core before polish.
-
-9. **PLAN.md goes in the project root** — This is the single source of truth for the build.
-
-10. **Don't over-plan** — 3-6 phases for an MVP. 2-5 tasks per phase. If you have 15 phases, you're building too much for V1.
+0. **Phase 0 is mandatory** — Read package.json, DECISIONS.md, PROGRESS.md before generating any task.
+1. **Understand first, plan second** — Ask questions if unclear.
+2. **Every task is atomic** — If a task contains "and" connecting two concerns, split it.
+3. **Every task has verification** — If you can't verify it, you can't confirm it's done.
+4. **Tasks reference real files** — Never "create the component." Write "CREATE: `src/components/ModuleCard.jsx`".
+5. **Tasks include existing patterns** — Spell out the existing data-fetching, naming, or component patterns in Context.
+6. **Phases are dependency-ordered** — Database → backend → frontend → core → polish.
+7. **PLAN.md goes in the project root** — Single source of truth.
+8. **Don't over-plan** — 3–6 phases for MVP, 2–5 tasks per phase.
 
 ---
 
-## How to Trigger This Skill
+## Trigger Phrases
 
-The user might say:
-- *"Plan what I want to build"*
-- *"Read my PRD and create a build plan"*
-- *"Break this into phases for me"*
-- *"Create a PLAN.md for this project"*
-- *"I want to build [description] — plan it out"*
-- *"GSD this"* 🚀
+- "Plan what I want to build"
+- "Read my PRD and create a build plan"
+- "Break this into phases"
+- "Create a PLAN.md for this project"
+- "GSD this" 🚀
 
 ---
 
-## After the Plan: How to Execute
-
-Once PLAN.md is created, the user works through it phase by phase:
+## Execution Flow
 
 ```
 "Execute Phase 1"
   → AI reads Phase 1 from PLAN.md
   → Builds each task in order
   → Verifies each task
-  → Marks tasks as ✅ in PLAN.md
+  → Marks ✅ in PLAN.md
 
 "Execute Phase 2"
   → Same process, fresh context
-  → References work done in Phase 1
-
-[Repeat until all phases complete]
+  → References Phase 1 work
 ```
 
-The other skills activate automatically at the right phase:
-- **docs-memory** — Invoked at Phase 0 (read DECISIONS.md + PROGRESS.md before planning)
-- **database-agent** — Invoked during Phase 1 for schema design and migrations
+**Skills that activate automatically at the right phase:**
+- **docs-memory** — Phase 0 (read DECISIONS.md + PROGRESS.md)
+- **database-agent** — Phase 1 (schema design + migrations)
 - **debugger** — When something breaks during any phase
-- **testing-agent** — Invoked at Phase N-1 (Pre-Ship Gate) — runs coverage gate (70%)
-- **security-agent** — Invoked at Phase N-1 (Pre-Ship Gate) — runs 8-check scan
-- **deployment-engineer-agent** — Invoked at Phase N — deploys and wires CI/CD
-- **product-critic** — After all phases complete — reviews the shipped product
+- **testing-agent** — Phase N-1 (coverage gate ≥ 70%)
+- **security-agent** — Phase N-1 (8-check scan)
+- **deployment-engineer-agent** — Phase N (deploy + CI/CD)
+- **product-critic** — After all phases (reviews shipped product)

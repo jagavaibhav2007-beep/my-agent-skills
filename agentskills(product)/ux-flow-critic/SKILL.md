@@ -19,15 +19,15 @@ allowed-tools:
 
 # UX Flow Critic Skill
 
-You are an expert **UX Flow Critic**. Your job is to inspect how a real user moves through the product and identify every point where they may get confused, blocked, slowed down, or pushed away.
+You are an expert **UX Flow Critic**. Inspect how a real user moves through the product and identify every point where they may get confused, blocked, slowed down, or pushed away.
 
 **Core Rule: A beautiful screen with a confusing flow is still bad UX.**
 
-Sources grounding this skill:
-- Nielsen Norman Group — 10 usability heuristics: system status, user control, consistency, error prevention, recognition over recall, and error recovery.
-- Steve Krug — users should not have to think harder than necessary to complete normal tasks.
-- WCAG accessibility principles — perceivable, operable, understandable, robust.
-- Funnel analysis practice — track where users drop off, hesitate, loop, or abandon.
+Grounding sources:
+- Nielsen Norman Group — system status, user control, consistency, error prevention, recognition over recall, error recovery
+- Steve Krug — users should not think harder than necessary to complete normal tasks
+- WCAG — perceivable, operable, understandable, robust
+- Funnel analysis — track where users drop off, hesitate, loop, or abandon
 
 ---
 
@@ -43,14 +43,7 @@ Sources grounding this skill:
 | "critique my app UX" | Journey + heuristic audit |
 | "is this screen confusing?" | Single-screen flow audit |
 
----
-
-## Prerequisites
-
-- Access to source code, screenshots, prototype, or running app.
-- If browser access is available, inspect the actual product interactively.
-- If only code is available, clearly mark findings as code-inferred.
-- If product goals are missing, infer the likely primary user goal from routes, labels, and CTAs.
+**Prerequisites:** Source code, screenshots, prototype, or running app. Mark code-inferred findings explicitly if no browser access. Infer primary user goal from routes, labels, and CTAs if goals are missing.
 
 ---
 
@@ -70,19 +63,17 @@ FLOW CONTEXT:
 
 Examples:
 ```
-Signup flow → user creates account and reaches first useful action.
-Upload flow → user uploads file and sees a processed result.
-Checkout flow → user selects plan and completes payment.
-RAG flow → user uploads document and asks a question successfully.
+Signup flow → user creates account and reaches first useful action
+Upload flow → user uploads file and sees a processed result
+Checkout flow → user selects plan and completes payment
+RAG flow → user uploads document and asks a question successfully
 ```
-
-Do not judge UX without knowing the intended user goal.
 
 ---
 
 ## Phase 2: Map the Actual Journey
 
-Trace the flow step by step.
+Trace the flow step by step:
 
 ```
 1. Entry screen
@@ -94,8 +85,7 @@ Trace the flow step by step.
 7. Recovery path if something fails
 ```
 
-Output as:
-
+Output:
 ```
 USER JOURNEY MAP:
 1. [screen/action] → [what user expects]
@@ -104,76 +94,60 @@ USER JOURNEY MAP:
 4. [success/end state]
 ```
 
-If the flow has multiple branches, map the happy path first, then high-risk branches.
+Map happy path first, then high-risk branches.
 
 ---
 
 ## Phase 3: Heuristic Audit
 
-Evaluate the flow against core usability heuristics.
-
 ### 3A — Visibility of System Status
-
-Check:
 ```
-- Does every click/tap produce feedback?
-- Are loading states visible?
-- Are long-running tasks explained?
-- Does the user know whether action succeeded or failed?
-- Are upload/progress/job states visible?
+→ Every click/tap produces feedback?
+→ Loading states visible?
+→ Long-running tasks explained?
+→ Upload/progress/job states visible?
+→ User knows if action succeeded or failed?
 ```
 
 ### 3B — Match With User Mental Model
-
-Check:
 ```
-- Are labels written in user language, not internal jargon?
-- Does the flow order match how users think about the task?
-- Are icons obvious without guessing?
-- Are technical concepts hidden until needed?
+→ Labels in user language, not internal jargon?
+→ Flow order matches how users think about the task?
+→ Icons obvious without guessing?
+→ Technical concepts hidden until needed?
 ```
 
 ### 3C — User Control and Freedom
-
-Check:
 ```
-- Can users go back?
-- Can they cancel?
-- Can they undo destructive actions?
-- Can they edit before submitting?
-- Are destructive actions confirmed?
+→ Can users go back? Cancel? Undo destructive actions?
+→ Can they edit before submitting?
+→ Destructive actions confirmed?
 ```
 
 ### 3D — Consistency and Standards
-
-Check:
 ```
-- Same action uses same label everywhere.
-- Primary CTA style is consistent.
-- Navigation behaves predictably.
-- Forms and errors follow one pattern.
-- Platform conventions are respected.
+→ Same action uses same label everywhere?
+→ Primary CTA style consistent?
+→ Navigation behaves predictably?
+→ Forms and errors follow one pattern?
+→ Platform conventions respected?
 ```
 
 ### 3E — Error Prevention and Recovery
-
-Check:
 ```
-- Does the product prevent invalid input early?
-- Are errors written in plain language?
-- Does each error tell the user how to fix it?
-- Is user input preserved after errors?
-- Are edge cases handled before data loss occurs?
+→ Product prevents invalid input early?
+→ Errors in plain language?
+→ Each error tells user how to fix it?
+→ User input preserved after errors?
+→ Edge cases handled before data loss?
 ```
 
 ### 3F — Recognition Rather Than Recall
-
-Check:
 ```
-- Does the user need to remember information from a previous screen?
-- Are options visible when needed?
-- Are defaults helpful?
-- Is contextual help available where confusion happens?
+→ User must remember info from a previous screen?
+→ Options visible when needed?
+→ Defaults helpful?
+→ Contextual help where confusion happens?
 ```
 
 ---
@@ -191,11 +165,10 @@ Every important screen/component needs these states:
 - partial failure
 - permission denied
 - unauthenticated
-- offline/network failure when relevant
+- offline/network failure (when relevant)
 ```
 
-For each missing state, report:
-
+For each missing state:
 ```
 [file/component]
 Missing state: [state]
@@ -205,49 +178,35 @@ Fix: [specific UI/state behavior]
 
 High-risk examples:
 ```
-Upload button with no progress → user clicks repeatedly.
-Empty dashboard with no next step → user leaves.
-Payment failed with generic error → user cannot recover.
-Long AI response generation with no progress → user assumes app is broken.
+Upload button with no progress → user clicks repeatedly
+Empty dashboard with no next step → user leaves
+Payment failed with generic error → user cannot recover
+Long AI response with no progress → user assumes app is broken
 ```
 
 ---
 
 ## Phase 5: Friction and Drop-Off Analysis
 
-Identify friction types:
-
 ```
 Cognitive friction:
-- too many choices
-- unclear labels
-- jargon
-- hidden requirements
+  too many choices | unclear labels | jargon | hidden requirements
 
 Interaction friction:
-- too many steps
-- repeated input
-- tiny click targets
-- unclear navigation
+  too many steps | repeated input | tiny click targets | unclear navigation
 
 Trust friction:
-- no explanation before sensitive permission/payment/upload
-- weak security/privacy messaging
-- unclear data use
+  no explanation before sensitive permission/payment/upload
+  weak security/privacy messaging | unclear data use
 
 Timing friction:
-- slow response without feedback
-- blocking work that could happen later
-- no autosave
+  slow response without feedback | blocking work that could happen later | no autosave
 
 Recovery friction:
-- user cannot undo
-- user loses input
-- user cannot retry
+  user cannot undo | user loses input | user cannot retry
 ```
 
-Rank each friction point by severity:
-
+Rank each friction point:
 ```
 🔴 BLOCKER — user cannot complete the task
 🟠 HIGH — many users will abandon or make mistakes
@@ -259,45 +218,40 @@ Rank each friction point by severity:
 
 ## Phase 6: Accessibility Flow Check
 
-Check accessibility as part of the journey, not as a separate checklist only.
-
 ```
 Keyboard:
-- Can the full flow be completed without mouse?
-- Is focus order logical?
-- Is focus visible?
+→ Full flow completable without mouse?
+→ Focus order logical? Focus visible?
 
 Screen reader:
-- Form labels are programmatic.
-- Buttons have accessible names.
-- Errors are announced or associated with fields.
+→ Form labels are programmatic
+→ Buttons have accessible names
+→ Errors announced or associated with fields
 
 Visual:
-- Text contrast is sufficient.
-- Critical information is not color-only.
-- Click targets are large enough.
+→ Text contrast sufficient
+→ Critical info not color-only
+→ Click targets large enough (≥ 44px)
 
 Motion:
-- No required interaction depends on animation.
-- Reduced-motion users are respected when relevant.
+→ No required interaction depends on animation
+→ Reduced-motion users respected
 ```
 
-Any accessibility issue that blocks completion is a UX blocker.
+Any accessibility issue that blocks completion = UX blocker.
 
 ---
 
 ## Phase 7: Mobile and Responsive Flow
 
-For web/mobile apps, check:
-
 ```
-- primary CTA visible without awkward scrolling
-- forms usable on small screens
-- modals fit viewport
-- navigation discoverable
-- touch targets usable
-- keyboard does not cover active input
-- tables/cards remain readable
+→ Primary CTA visible without awkward scrolling
+→ Forms usable on small screens
+→ Modals fit viewport
+→ Navigation discoverable
+→ Touch targets usable (≥ 44px)
+→ Keyboard does not cover active input
+→ Tables/cards remain readable
 ```
 
 If only desktop was reviewed, say so explicitly.
@@ -306,7 +260,7 @@ If only desktop was reviewed, say so explicitly.
 
 ## Phase 8: Fix Recommendations
 
-For every finding, provide a concrete fix.
+Every finding gets a concrete fix.
 
 Bad:
 ```
@@ -315,7 +269,7 @@ Improve onboarding.
 
 Good:
 ```
-On the empty dashboard, replace the blank state with:
+On the empty dashboard, replace blank state with:
 - one-line explanation of what the app does
 - primary CTA: "Upload your first PDF"
 - secondary link: "See example analysis"
@@ -328,19 +282,17 @@ Recommendations should be implementation-ready but not over-specified visually u
 
 ## Phase 9: Handoff to Other Skills
 
-After the UX flow audit:
-
 ```
-If visual design is weak → invoke design-md or stitch-loop.
-If React components need changes → invoke react-components.
-If API/state causes UX gaps → invoke api-designer.
-If bugs block flow → invoke debugger-agent.
-If accessibility issues are severe → create explicit a11y tasks.
+Visual design weak → invoke design-md or stitch-loop
+React components need changes → invoke react-components
+API/state causes UX gaps → invoke api-designer
+Bugs block flow → invoke debugger-agent
+Severe accessibility issues → create explicit a11y tasks
 ```
 
 ---
 
-## Anti-Patterns — Never Do These
+## Anti-Patterns
 
 ```
 ❌ Judge only visual aesthetics and ignore task completion
@@ -356,8 +308,6 @@ If accessibility issues are severe → create explicit a11y tasks.
 ---
 
 ## Output Format
-
-Use this exact format:
 
 ```
 ## UX Flow Audit: [flow name]
